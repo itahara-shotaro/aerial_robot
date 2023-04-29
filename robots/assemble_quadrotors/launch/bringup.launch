@@ -69,27 +69,27 @@
     <remap from="/$(arg robot_ns)/assemble/motor_info" to="/$(arg robot_ns)/motor_info" />
     <remap from="/$(arg robot_ns)/male/motor_info" to="/$(arg robot_ns)/motor_info" if ="$(eval airframe=='male')"/>
     <remap from="/$(arg robot_ns)/female/motor_info" to="/$(arg robot_ns)/motor_info" if ="$(eval airframe=='female')"/>
-    <!-- <remap from="/$(arg robot_ns)/neutral/motor_info" to="/$(arg robot_ns)/motor_info" /> -->
+    <remap from="/$(arg robot_ns)/neutral/motor_info" to="/$(arg robot_ns)/motor_info" />
 
     <remap from="/$(arg robot_ns)/assemble/four_axes/command" to="/$(arg robot_ns)/four_axes/command" />
     <remap from="/$(arg robot_ns)/male/four_axes/command" to="/$(arg robot_ns)/four_axes/command" if ="$(eval airframe=='male')"/>
     <remap from="/$(arg robot_ns)/female/four_axes/command" to="/$(arg robot_ns)/four_axes/command" if ="$(eval airframe=='female')"/>
-    <!-- <remap from="/$(arg robot_ns)/neutral/four_axes/command" to="/$(arg robot_ns)/four_axes/command" /> -->
+    <remap from="/$(arg robot_ns)/neutral/four_axes/command" to="/$(arg robot_ns)/four_axes/command" />
 
     <remap from="/$(arg robot_ns)/assemble/p_matrix_pseudo_inverse_inertia" to="/$(arg robot_ns)/p_matrix_pseudo_inverse_inertia" />
     <remap from="/$(arg robot_ns)/male/p_matrix_pseudo_inverse_inertia" to="/$(arg robot_ns)/p_matrix_pseudo_inverse_inertia" if ="$(eval airframe=='male')"/>
     <remap from="/$(arg robot_ns)/female/p_matrix_pseudo_inverse_inertia" to="/$(arg robot_ns)/p_matrix_pseudo_inverse_inertia" if ="$(eval airframe=='female')"/>
-    <!-- <remap from="/$(arg robot_ns)/neutral/p_matrix_pseudo_inverse_inertia" to="/$(arg robot_ns)/p_matrix_pseudo_inverse_inertia" /> -->
+    <remap from="/$(arg robot_ns)/neutral/p_matrix_pseudo_inverse_inertia" to="/$(arg robot_ns)/p_matrix_pseudo_inverse_inertia" />
 
     <remap from="/$(arg robot_ns)/assemble/torque_allocation_matrix_inv" to="/$(arg robot_ns)/torque_allocation_matrix_inv"/>
     <remap from="/$(arg robot_ns)/male/torque_allocation_matrix_inv" to="/$(arg robot_ns)/torque_allocation_matrix_inv" if ="$(eval airframe=='male')"/>
     <remap from="/$(arg robot_ns)/female/torque_allocation_matrix_inv" to="/$(arg robot_ns)/torque_allocation_matrix_inv" if ="$(eval airframe=='female')"/>
-    <!-- <remap from="/$(arg robot_ns)/neutral/torque_allocation_matrix_inv" to="/$(arg robot_ns)/torque_allocation_matrix_inv"/> -->
+    <remap from="/$(arg robot_ns)/neutral/torque_allocation_matrix_inv" to="/$(arg robot_ns)/torque_allocation_matrix_inv"/>
 
     <remap from="/$(arg robot_ns)/assemble/rpy/gain" to="/$(arg robot_ns)/rpy/gain" />
     <remap from="/$(arg robot_ns)/male/rpy/gain" to="/$(arg robot_ns)/rpy/gain" if ="$(eval airframe=='male')"/>
     <remap from="/$(arg robot_ns)/female/rpy/gain" to="/$(arg robot_ns)/rpy/gain" if ="$(eval airframe=='female')"/>
-    <!-- <remap from="/$(arg robot_ns)/neutral/rpy/gain" to="/$(arg robot_ns)/rpy/gain" /> -->
+    <remap from="/$(arg robot_ns)/neutral/rpy/gain" to="/$(arg robot_ns)/rpy/gain" />
 
     <!-- <remap from="/$(arg robot_ns)/assemble/uav_info" to="/$(arg robot_ns)/uav_info" if="$(eval initial_assemble)"/> -->
     <!-- <remap from="/$(arg robot_ns)/male/uav_info" to="/$(arg robot_ns)/uav_info" if ="$(eval not initial_assemble and airframe=='male')"/> -->
@@ -97,32 +97,32 @@
     <remap from="/$(arg robot_ns)/assemble/uav_info" to="/$(arg robot_ns)/uav_info" />
     <remap from="/$(arg robot_ns)/male/uav_info" to="/$(arg robot_ns)/uav_info" if ="$(eval airframe=='male')"/>
     <remap from="/$(arg robot_ns)/female/uav_info" to="/$(arg robot_ns)/uav_info" if ="$(eval airframe=='female')"/>
-    <!-- <remap from="/$(arg robot_ns)/neutral/uav_info" to="/$(arg robot_ns)/uav_info" /> -->
+    <remap from="/$(arg robot_ns)/neutral/uav_info" to="/$(arg robot_ns)/uav_info" />
 
     <remap from="/$(arg robot_ns)/assemble/debug/pose/pid" to="/$(arg robot_ns)/debug/pose/pid" />
     <remap from="/$(arg robot_ns)/male/debug/pose/pid" to="/$(arg robot_ns)/debug/pose/pid"  if ="$(eval airframe=='male')"/>
     <remap from="/$(arg robot_ns)/female/debug/pose/pid" to="/$(arg robot_ns)/debug/pose/pid" if ="$(eval airframe=='female')"/>
-    <!-- <remap from="/$(arg robot_ns)/neutral/debug/pose/pid" to="/$(arg robot_ns)/debug/pose/pid" /> -->
+    <remap from="/$(arg robot_ns)/neutral/debug/pose/pid" to="/$(arg robot_ns)/debug/pose/pid" />
 
     <remap from="/$(arg robot_ns)/assemble/debug/pose/du" to="/$(arg robot_ns)/debug/pose/du" />
     <remap from="/$(arg robot_ns)/male/debug/pose/du" to="/$(arg robot_ns)/debug/pose/du"  if ="$(eval airframe=='male')"/>
     <remap from="/$(arg robot_ns)/female/debug/pose/du" to="/$(arg robot_ns)/debug/pose/du" if ="$(eval airframe=='female')"/>
-    <!-- <remap from="/$(arg robot_ns)/neutral/debug/pose/du" to="/$(arg robot_ns)/debug/pose/du" /> -->
+    <remap from="/$(arg robot_ns)/neutral/debug/pose/du" to="/$(arg robot_ns)/debug/pose/du" />
 
     <remap from="/$(arg robot_ns)/assemble/debug/wrench_allocation_matrix" to="/$(arg robot_ns)/debug/wrench_allocation_matrix" />
     <remap from="/$(arg robot_ns)/male/debug/wrench_allocation_matrix" to="/$(arg robot_ns)/debug/wrench_allocation_matrix" if ="$(eval airframe=='male')"/>
     <remap from="/$(arg robot_ns)/female/debug/wrench_allocation_matrix" to="/$(arg robot_ns)/debug/wprench_allocation_matrix" if ="$(eval airframe=='female')"/>
-    <!-- <remap from="/$(arg robot_ns)/neutral/debug/wrench_allocation_matrix" to="/$(arg robot_ns)/debug/wrench_allocation_matrix" /> -->
+    <remap from="/$(arg robot_ns)/neutral/debug/wrench_allocation_matrix" to="/$(arg robot_ns)/debug/wrench_allocation_matrix" />
 
     <remap from="/$(arg robot_ns)/assemble/debug/wrench_allocation_matrix_inv" to="/$(arg robot_ns)/debug/wrench_allocation_matrix_inv" />
     <remap from="/$(arg robot_ns)/male/debug/wrench_allocation_matrix_inv" to="/$(arg robot_ns)/debug/wrench_allocation_matrix_inv" if ="$(eval airframe=='male')"/>
     <remap from="/$(arg robot_ns)/female/debug/wrenpch_allocation_matrix_inv" to="/$(arg robot_ns)/debug/wrench_allocation_matrix_inv" if ="$(eval airframe=='female')"/>
-    <!-- <remap from="/$(arg robot_ns)/neutral/debug/wrench_allocation_matrix_inv" to="/$(arg robot_ns)/debug/wrench_allocation_matrix_inv" /> -->
+    <remap from="/$(arg robot_ns)/neutral/debug/wrench_allocation_matrix_inv" to="/$(arg robot_ns)/debug/wrench_allocation_matrix_inv" />
 
     <remap from="/$(arg robot_ns)/assemble/debug/four_axes/gain" to="/$(arg robot_ns)/debug/four_axes/gain" />
     <remap from="/$(arg robot_ns)/male/debug/four_axes/gain" to="/$(arg robot_ns)/debug/four_axes/gain" if ="$(eval airframe=='male')"/>
     <remap from="/$(arg robot_ns)/female/debug/four_axes/gain" to="/$(arg robot_ns)/debug/four_axes/gain" if ="$(eval airframe=='female')"/>
-    <!-- <remap from="/$(arg robot_ns)/neutral/debug/four_axes/gain" to="/$(arg robot_ns)/debug/four_axes/gain" /> -->
+    <remap from="/$(arg robot_ns)/neutral/debug/four_axes/gain" to="/$(arg robot_ns)/debug/four_axes/gain" />
   </node>
 
 
@@ -135,7 +135,8 @@
 
     <!-- assemble and dessemble model for switching function -->
     <arg name="assemble_robot_model" value="$(find assemble_quadrotors)/urdf/assemble_dual_quadrotors_whole_male_mag.$(arg description_mode).xacro" if="$(eval airframe == 'male')"/>
-    <arg name="assemble_robot_model" value="$(find assemble_quadrotors)/urdf/assemble_dual_quadrotors_whole_female_mag.$(arg description_mode).xacro" if="$(eval airframe == 'female')"/>
+    <arg name="assemble_robot_model" value="$(find assemble_quadrotors)/urdf/assemble_dual_quadrotors_whole_female_mag.$(arg description_mode).xacro" if="$(eval airframe == 'female')"/> 
+    <arg name="assemble_robot_model" value="$(find assemble_quadrotors)/urdf/assemble_dual_quadrotors_whole_female_mag.$(arg description_mode).xacro" if="$(eval airframe == 'neutral')"/>
     <arg name="dessemble_robot_model" value="$(find assemble_quadrotors)/urdf/assemble_dual_quadrotors_neutral.$(arg description_mode).xacro" if="$(eval airframe == 'neutral')"/>
     <arg name="dessemble_robot_model" value="$(find assemble_quadrotors)/urdf/assemble_dual_quadrotors_male_mag.$(arg description_mode).xacro" if="$(eval airframe == 'male')"/>
     <arg name="dessemble_robot_model" value="$(find assemble_quadrotors)/urdf/assemble_dual_quadrotors_female_mag.$(arg description_mode).xacro" if="$(eval airframe == 'female')"/>
@@ -156,13 +157,6 @@
     <arg name="robot_ns" value="$(arg robot_ns)" />
     <arg name="robot_id" value="$(arg robot_id)" />
     <arg name="airframe" value="$(arg airframe)" />
-  </include >
-  <include file="$(find assemble_quadrotors)/launch/includes/docking_mechanism.launch" >
-    <arg name="real_machine" value="$(arg real_machine)" />
-    <arg name="robot_ns" value="$(arg robot_ns)" />
-    <arg name="airframe" value="$(arg airframe)"/>
-    <arg name="port" value="/dev/docking_controller" />
-    <arg name="baud" value="115200" />
   </include >
 
 

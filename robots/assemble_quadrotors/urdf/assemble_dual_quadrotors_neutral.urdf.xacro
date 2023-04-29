@@ -15,10 +15,10 @@
   <xacro:property name="rotor_z" value="${0.050}" />
   <xacro:property name="opt_pich_1" value="${0.45}" />
   <xacro:property name="opt_yaw_1" value="${0.73108}" />
-  <xacro:property name="opt_pich_2" value="${0.523535}" />
-  <xacro:property name="opt_yaw_2" value="${-2.08113}" />
-  <xacro:property name="opt_pich_3" value="${0.523535}" />
-  <xacro:property name="opt_yaw_3" value="${2.08113}" />
+  <xacro:property name="opt_pich_2" value="${-0.45}" />
+  <xacro:property name="opt_yaw_2" value="${0.73108}" />
+  <xacro:property name="opt_pich_3" value="${-0.45}" />
+  <xacro:property name="opt_yaw_3" value="${-0.73108}" />
   <xacro:property name="opt_pich_4" value="${0.45}" />
   <xacro:property name="opt_yaw_4" value="${-0.73108}" />
 
@@ -125,9 +125,9 @@
       <mass value = "0.83259112" />
       <origin xyz="-0.00177281 0 0.017 " rpy="0 0 0"/>
       <inertia
-          ixx="0.00572241" ixy="-0.00001571" ixz="0.00008325"
-          iyy="0.00609609" iyz="-0.00001479"
-          izz="0.01007121"/>
+          ixx="0.00530844" ixy="-0.00021943" ixz="-0.00000592"
+          iyy="0.00581876" iyz="-0.00001257"
+          izz="0.00950014"/>
     </inertial>
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
