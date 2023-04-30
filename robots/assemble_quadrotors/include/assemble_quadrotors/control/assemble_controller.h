@@ -73,7 +73,7 @@ namespace aerial_robot_control
       double sum_ratio;
       double rate;
       rate = 1.0-6.0/(2.0*mass_trans_count_ + 6.0 );
-      ROS_INFO("rate is %f", rate);
+      //ROS_INFO("rate is %f", rate);
       sum_ratio= (rate * now_sum + (1 - rate) * pre_sum)/ now_sum;
       return sum_ratio;
     }

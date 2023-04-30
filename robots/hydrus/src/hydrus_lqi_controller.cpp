@@ -177,6 +177,7 @@ void HydrusLQIController::gainGeneratorFunc()
         {
           if(optimalGain())
             {
+	      ROS_INFO("OK");
               publishGain();
             }
           else

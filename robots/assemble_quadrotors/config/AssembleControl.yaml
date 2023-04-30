@@ -171,9 +171,9 @@ female:
 neutral:
   controller:
     xy:
-      p_gain: 10
+      p_gain: 8
       i_gain: 0.1
-      d_gain: 8.0
+      d_gain: 6.0
       limit_sum: 3
       limit_p: 3
       limit_i: 1.5
@@ -208,7 +208,7 @@ neutral:
       gyro_moment_compensation: true
       clamp_gain: true
 
-      roll_pitch_p: 400
+      roll_pitch_p: 200
       roll_pitch_i: 2
       roll_pitch_d: 1
 
