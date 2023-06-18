@@ -20,6 +20,7 @@ if __name__=="__main__":
         settings = termios.tcgetattr(sys.stdin)
         rospy.init_node("keyboard_command")
         robot_ns = rospy.get_param("~robot_ns", "");
+        print(robot_ns)
 
         if not robot_ns:
                 master = rosgraph.Master('/rostopic')

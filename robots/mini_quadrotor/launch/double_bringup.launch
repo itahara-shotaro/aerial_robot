@@ -13,7 +13,7 @@
         <arg name="real_machine" value="False"/>
         <arg name="robot_id" value="2"/>
         <arg name="launch_gazebo" value="False"/>
-        <arg name="spawn_x" value="0.6" />
+        <arg name="spawn_x" value="1.3" />
         <arg name="spawn_y" value="0" />
         <arg name="spawn_yaw" value="3.14159265"/>
     </include>

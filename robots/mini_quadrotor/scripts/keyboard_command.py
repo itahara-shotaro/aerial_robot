@@ -20,9 +20,10 @@ if __name__=="__main__":
         settings = termios.tcgetattr(sys.stdin)
         rospy.init_node("keyboard_command")
         #robot_ns = rospy.get_param("~robot_ns", "");
-        robot_ns1="quadrotor1"
-        robot_ns2="quadrotor2"
-
+        robot_ns1="assemble_quadrotors1"
+        robot_ns2="assemble_quadrotors2"
+        # robot_ns1="quadrotor1"
+        # robot_ns2="quadrotor2"
 
         ns1 = robot_ns1 + "/teleop_command"
         land_pub1 = rospy.Publisher(ns1 + '/land', Empty, queue_size=1)
@@ -43,8 +44,6 @@ if __name__=="__main__":
         motion_start_pub2 = rospy.Publisher('task_start', Empty, queue_size=1)
 
 
-
-        #the way to write publisher in python
         comm=Int8()
         gain=UInt16()
         try:
@@ -61,10 +60,12 @@ if __name__=="__main__":
                                 start_pub2.publish(Empty())
                                 #for hydra joints
                         if key == 'h':
-                                halt_pub.publish(Empty())
+                                halt_pub1.publish(Empty())
+                                halt_pub2.publish(Empty())
                                  #for hydra joints
                         if key == 'f':
-                                force_landing_pub.publish(Empty())
+                                force_landing_pub1.publish(Empty())
+                                force_landing_pub2.publish(Empty())
                         if key == 't':
                                 takeoff_pub1.publish(Empty())
                                 takeoff_pub2.publish(Empty())
@@ -74,10 +75,12 @@ if __name__=="__main__":
                                 motion_start_pub.publish()
                         if key == 'v':
                                 comm.data = 1
-                                ctrl_mode_pub.publish(comm)
+                                ctrl_mode_pub1.publish(comm)
+                                ctrl_mode_pub2.publish(comm)
                         if key == 'p':
                                 comm.data = 0
-                                ctrl_mode_pub.publish(comm)
+                                ctrl_mode_pub1.publish(comm)
+                                ctrl_mode_pub2.publish(comm)
                         if key == '\x03':
                                 break
                         rospy.sleep(0.001)

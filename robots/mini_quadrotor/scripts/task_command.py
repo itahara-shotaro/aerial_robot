@@ -1,5 +1,3 @@
-#!/usr/bin/python3.8
-
 # moton/に入ったjsonに記載された位置に移動する
 # 使用するjsonファイルは引数で受け取る
 
@@ -13,13 +11,24 @@ from numpy import deg2rad, arccos
 from aerial_robot_msgs.msg import FlightNav
 from geometry_msgs.msg import PoseStamped, Point
 
+config_sim={"name1":"quadrotor1","name2":"quadrotor2"}
+config_real={"name1":"assemble_quadrotors1","name2":"assemble_quadrotors2"}
 
-def task_command(name1="quadrotor1", name2="quadrotor2", task_name="motion1"):
+def task_command(isreal, task_name):
 
     file_name=task_name+".json"
-
-    with open(f"motion/{file_name}",'r') as file:
-        motion_data=json.loads(file.read())["movement"]
+    if isreal==True:
+        name1=config_real["name1"]
+        name2=config_real["name2"]
+    else:
+        name1=config_sim["name1"]
+        name2=config_sim["name2"]
+    try:
+        with open(f"motion/{file_name}",'r') as file:
+            motion_data=json.loads(file.read())["movement"]
+    except FileNotFoundError:
+        print(f"movement {task_name} not found")
+        return
 
     # prepare publisher
     rospy.init_node("task_command")
@@ -80,6 +89,7 @@ def task_command(name1="quadrotor1", name2="quadrotor2", task_name="motion1"):
 
     yaw1_orig=sum(yaw1)/len(yaw1)
     yaw2_orig=sum(yaw2)/len(yaw2)
+    print(yaw1_orig,yaw2_orig)
 
     # execute described motions
 
@@ -99,12 +109,12 @@ def task_command(name1="quadrotor1", name2="quadrotor2", task_name="motion1"):
 
         qr1_msg.pos_xy_nav_mode=2
         qr1_msg.yaw_nav_mode=2
-        qr1_msg.pos_z_nav_mode=2
+        qr1_msg.pos_z_nav_mode=0
         [qr1_msg.target_pos_x, qr1_msg.target_pos_y, qr1_msg.target_pos_z, qr1_msg.target_yaw]=qr1_tgt
 
         qr2_msg.pos_xy_nav_mode=2
         qr2_msg.yaw_nav_mode=2
-        qr2_msg.pos_z_nav_mode=2
+        qr2_msg.pos_z_nav_mode=0
         [qr2_msg.target_pos_x, qr2_msg.target_pos_y, qr2_msg.target_pos_z, qr2_msg.target_yaw]=qr2_tgt
 
         #publish message for duration
@@ -119,5 +129,18 @@ def task_command(name1="quadrotor1", name2="quadrotor2", task_name="motion1"):
 
     rospy.signal_shutdown("Movement finished")
 
-if __name__==__main__:
-    task_command()
+if __name__=="__main__":
+    
+    try: 
+        task_name=sys.argv[1]
+    except IndexError:
+        print("Not enough arguments")
+        exit()
+    
+    try:
+        real=(sys.argv[2]=="real")
+    except IndexError:
+        print("Not enough arguments")
+        exit()
+        
+    task_command(real,task_name)
