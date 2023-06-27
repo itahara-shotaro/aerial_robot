@@ -142,7 +142,7 @@
 
   <!-- spinal -->
   <xacro:extra_module name = "fc" parent = "main_body" visible = "0" >
-    <origin xyz="-0.22 0.0 0.0165" rpy="0 0 0"/>
+    <origin xyz="-0.613 0.0 0.0195" rpy="0 0 3.14159265358979"/>
     <inertial>
       <mass value = "0.05" />
       <origin xyz="0 0 0" rpy="0 0 0"/>
