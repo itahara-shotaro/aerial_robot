@@ -96,7 +96,12 @@ namespace aerial_robot_control
     Eigen::MatrixXd q_mat = robot_model_->calcWrenchMatrixOnCoG();
     q_mat_.topRows(3) =  mass_inv * q_mat.topRows(3) ;
     q_mat_.bottomRows(3) =  inertia_inv * q_mat.bottomRows(3);
+
+    std::cout << "q_mat" << std::endl << q_mat << std::endl;
+
     q_mat_inv_ = aerial_robot_model::pseudoinverse(q_mat_);
+
+    std::cout << "q_mat_inv" << std::endl << q_mat_inv_ << std::endl;
 
      Eigen::VectorXd target_thrust_x_term = q_mat_inv_.col(X) * target_acc_cog.x();
      Eigen::VectorXd target_thrust_y_term = q_mat_inv_.col(Y) * target_acc_cog.y();
