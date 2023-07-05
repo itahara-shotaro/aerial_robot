@@ -95,34 +95,14 @@ namespace aerial_robot_control
     Eigen::MatrixXd q_mat = robot_model_->calcWrenchMatrixOnCoG();
     q_mat_.topRows(3) =  mass_inv * q_mat.topRows(3) ;
     q_mat_.bottomRows(3) =  inertia_inv * q_mat.bottomRows(3);
-    const Eigen::MatrixXd tmp=q_mat_;
-
-    Eigen::MatrixXd q_mat_2=Eigen::MatrixXd::Zero(q_mat_.rows()-1,q_mat_.cols());
-    q_mat_2<<tmp.topRows(1),tmp.bottomRows(4);
-    //std::cout<<"q_mat_reduced_:\n";
-    //std::cout<<q_mat_2<<"\n";
-    /*const int size=6;
-    Eigen::MatrixXd W= Eigen::MatrixXd::Identity(size,size);
     
+    double sr_inverse_sigma = 0.1;
+    Eigen::MatrixXd q = q_mat;
+    Eigen::MatrixXd q_q_t = q * q.transpose();
+    Eigen::MatrixXd sr_inv = q.transpose() * (q_q_t + sr_inverse_sigma* Eigen::MatrixXd::Identity(q_q_t.cols(), q_q_t.rows())).inverse();
 
-    const Eigen::MatrixXd Q_weighted = q_mat_.transpose()*W*q_mat_;
-    if(Q_weighted.isZero(1e-9)){
-            q_mat_inv_ = Eigen::MatrixXd::Zero(q_mat_.cols(), q_mat_.rows());
-    }
-    else{
-            q_mat_inv_=Q_weighted.inverse()*q_mat_.transpose()*W;
-    }
-
-    const Eigen::MatrixXd q_mat_inv_tmp = aerial_robot_model::pseudoinverse(q_mat_);*/
-    //Eigen::MatrixXd q_mat_inv_ = aerial_robot_model::pseudoinverse(q_mat_);
-    q_mat_inv_=aerial_robot_model::pseudoinverse(q_mat_);
-    const Eigen::MatrixXd q_mat_inv_2_=aerial_robot_model::pseudoinverse(q_mat_2);
-    // std::cout<<"q_mat_:"<<std::endl;
-    // std::cout<<q_mat_<<std::endl;
-    ROS_INFO_STREAM(q_mat_inv_2_);
-    // std::cout<<"q_mat_inv:"<<std::endl;
-    // std::cout<<q_mat_inv_<<std::endl;
-   // q_mat_inv_ = aerial_robot_model::pseudoinverse(q_mat_);
+    q_mat_inv_=sr_inv;
+    
 
      Eigen::VectorXd target_thrust_x_term = q_mat_inv_.col(X) * target_acc_cog.x();
      Eigen::VectorXd target_thrust_y_term = q_mat_inv_.col(Y) * target_acc_cog.y();
