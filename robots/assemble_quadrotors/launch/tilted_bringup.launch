@@ -22,6 +22,7 @@
   <arg name="config_dir" default="$(find assemble_quadrotors)/config/" />
   <arg name="initial_assemble" default="false" />
   <arg name="gui" default="true" />
+  <arg name="rigid" default="false" />
 
 
   ###########  Parameters  ###########
@@ -130,7 +131,8 @@
     <arg name="headless" value="$(arg headless)" />
 
     
-    <arg name="assemble_robot_model" value="$(find assemble_quadrotors)/urdf/tilted/dual/robot$(arg robot_id).$(arg description_mode).xacro"/>
+    <arg name="assemble_robot_model" value="$(find assemble_quadrotors)/urdf/tilted/dual/robot$(arg robot_id).$(arg description_mode).xacro" unless="$(arg rigid)"/>
+    <arg name="assemble_robot_model" value="$(find assemble_quadrotors)/urdf/tilted/dual/robot$(arg robot_id)_rigid.$(arg description_mode).xacro" if="$(arg rigid)"/>
     
     <arg name="dessemble_robot_model" value="$(find assemble_quadrotors)/urdf/tilted/single/robot.$(arg description_mode).xacro"/>
     
