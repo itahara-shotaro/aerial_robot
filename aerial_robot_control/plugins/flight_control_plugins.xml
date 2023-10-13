@@ -16,4 +16,8 @@
     <description>controller for under actuated model (e.g., quad) with LQI Tilted controller </description>
   </class>
 
+  <class name="aerial_robot_control/fully_actuated_nobend_controller" type="aerial_robot_control::FullyActuatedNobendController" base_class_type="aerial_robot_control::ControlBase">
+    <description>controller for fully actuated model (e.g., tilted hex) </description>
+  </class>
+
 </library>

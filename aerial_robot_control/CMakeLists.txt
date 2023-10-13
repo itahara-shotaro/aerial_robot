@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 find_package(Eigen3 REQUIRED)
+find_package(NLopt REQUIRED)
 
 generate_dynamic_reconfigure_options(
   cfg/PID.cfg
@@ -46,18 +47,20 @@ include_directories(
  include
  ${catkin_INCLUDE_DIRS}
  ${EIGEN3_INCLUDE_DIRS}
+ ${NLOPT_INCLUDE_DIRS}
 )
 
 ### control utils
 add_library(control_utils
   src/control/utils/care.cpp
   )
-target_link_libraries(control_utils ${EIGEN3_LIBRARIES})
+target_link_libraries(control_utils ${EIGEN3_LIBRARIES} ${NLOPT_LIBRARIES})
 
 ### flight control plugin
 add_library(flight_control_pluginlib
   src/control/base/pose_linear_controller.cpp
   src/control/fully_actuated_controller.cpp
+  src/control/fully_actuated_nobend_controller.cpp
   src/control/under_actuated_controller.cpp
   src/control/under_actuated_lqi_controller.cpp
   src/control/under_actuated_tilted_lqi_controller.cpp)

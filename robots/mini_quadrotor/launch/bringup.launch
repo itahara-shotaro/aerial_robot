@@ -44,8 +44,9 @@
     <rosparam file="$(arg config_dir)/Battery.yaml" command="load" />
 
     ###########  Control  ###########
-    <rosparam file="$(arg config_dir)/LQIFlightControl.yaml" command="load" if="$(arg lqi_control_method)" />
-    <rosparam file="$(arg config_dir)/QinvFlightControl.yaml" command="load" unless="$(arg lqi_control_method)"/>
+    <!-- <rosparam file="$(arg config_dir)/LQIFlightControl.yaml" command="load" if="$(arg lqi_control_method)" />
+    <rosparam file="$(arg config_dir)/QinvFlightControl.yaml" command="load" unless="$(arg lqi_control_method)"/> -->
+    <rosparam file="$(arg config_dir)/FullyActuatedControl.yaml" command="load"/>
 
     ###########  Sensor Fusion  ###########
     <rosparam file="$(arg config_dir)/StateEstimation.yaml" command="load" />

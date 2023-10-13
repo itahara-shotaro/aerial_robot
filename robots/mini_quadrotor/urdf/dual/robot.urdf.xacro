@@ -150,8 +150,8 @@
       </visual>
   </link>
 
-  <joint name="flex_joint1" type="revolute">
-  <!-- <joint name="flex_joint1" type="fixed"> -->
+  <!-- <joint name="flex_joint1" type="revolute"> -->
+  <joint name="flex_joint1" type="fixed">
     <parent link="main_body1"/>
     <child link="flex_link"/>
     <origin rpy="0 0 0" xyz="0 0 ${-flex_joint_offset_z}"/>
