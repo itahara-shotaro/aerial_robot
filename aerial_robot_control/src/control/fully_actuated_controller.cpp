@@ -96,11 +96,24 @@ namespace aerial_robot_control
     Eigen::MatrixXd q_mat = robot_model_->calcWrenchMatrixOnCoG();
     q_mat_.topRows(3) =  mass_inv * q_mat.topRows(3) ;
     q_mat_.bottomRows(3) =  inertia_inv * q_mat.bottomRows(3);
-    q_mat_inv_ = aerial_robot_model::pseudoinverse(q_mat_);
+
+    double sr_inverse_sigma = 0.1;
+    Eigen::MatrixXd q = q_mat;
+    Eigen::MatrixXd q_q_t = q * q.transpose();
+    Eigen::MatrixXd sr_inv = q.transpose() * (q_q_t + sr_inverse_sigma* Eigen::MatrixXd::Identity(q_q_t.cols(), q_q_t.rows())).inverse();
+
+    q_mat_.topRows(3) =  mass_inv * q_mat.topRows(3) ;
+    q_mat_.bottomRows(3) =  inertia_inv * q_mat.bottomRows(3);
+
+    q_mat_inv_ = sr_inv;
+
+    // q_mat_inv_ = aerial_robot_model::pseudoinverse(q_mat_);
 
      Eigen::VectorXd target_thrust_x_term = q_mat_inv_.col(X) * target_acc_cog.x();
      Eigen::VectorXd target_thrust_y_term = q_mat_inv_.col(Y) * target_acc_cog.y();
      Eigen::VectorXd target_thrust_z_term = q_mat_inv_.col(Z) * target_acc_cog.z();
+
+     // std::cout << "target_thrust_z_term : "  << target_thrust_z_term << std::endl;
 
     // constraint x and y
     int index;

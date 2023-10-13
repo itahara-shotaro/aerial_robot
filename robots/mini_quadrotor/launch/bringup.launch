@@ -5,6 +5,7 @@
   <arg name="sim" default="False" />
   <arg name="robot_num" default="single" />
   <arg name="lqi_ctrl" default="True" />
+  <arg name="full_ctrl" default="False" />
   <arg name="real_machine" default="$(arg rm)" />
   <arg name="simulation" default="$(arg sim)" />
   <arg name="lqi_control_method" default="$(arg lqi_ctrl)" />
@@ -44,9 +45,10 @@
     <rosparam file="$(arg config_dir)/Battery.yaml" command="load" />
 
     ###########  Control  ###########
-    <!-- <rosparam file="$(arg config_dir)/LQIFlightControl.yaml" command="load" if="$(arg lqi_control_method)" />
-    <rosparam file="$(arg config_dir)/QinvFlightControl.yaml" command="load" unless="$(arg lqi_control_method)"/> -->
-    <rosparam file="$(arg config_dir)/FullyActuatedControl.yaml" command="load"/>
+    <rosparam file="$(arg config_dir)/LQIFlightControl.yaml" command="load" if="$(arg lqi_control_method)" />
+    <rosparam file="$(arg config_dir)/QinvFlightControl.yaml" command="load" if="$(eval not arg('full_ctrl') and not arg('lqi_control_method'))"/>
+    <rosparam file="$(arg config_dir)/QinvFullFlightControl.yaml" command="load" if="$(eval arg('full_ctrl') and not arg('lqi_control_method'))"/>
+    <!-- <rosparam file="$(arg config_dir)/FullyActuatedControl.yaml" command="load"/> -->
 
     ###########  Sensor Fusion  ###########
     <rosparam file="$(arg config_dir)/StateEstimation.yaml" command="load" />
