@@ -24,3 +24,14 @@ catkin build
 Please check instruction in [wiki](https://github.com/JSKAerialRobot/aerial_robot/wiki).
 
 
+## memo
+
+全駆動制御の実験用のbranch. mini_quadrotorを利用してプロペラが8枚取り付けられたモデルをシミュレーションできる．
+
+(実機では，これをassemble_quadrotorに移植することになる)
+
+実験時は
+```
+roslaunch mini_quadrotor bringup.launch simulation:=True headless:=False real_machine:=False full_ctrl:=True robot_id:=1 robot_num:=dual lqi_control_method:=False
+```
+で全駆動を検証できる．
