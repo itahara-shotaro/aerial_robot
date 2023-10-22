@@ -20,4 +20,8 @@
     <description>controller for fully actuated model (e.g., tilted hex) </description>
   </class>
 
+  <class name="aerial_robot_control/fully_actuated_srinv_controller" type="aerial_robot_control::FullyActuatedSRinvController" base_class_type="aerial_robot_control::ControlBase">
+    <description>controller for fully actuated model with SR inverse instead of MP inverse. For use as a reference. </description>
+  </class>
+
 </library>
