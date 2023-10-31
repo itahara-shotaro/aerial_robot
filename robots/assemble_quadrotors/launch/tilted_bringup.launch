@@ -171,4 +171,6 @@
   ######## work around to evoke robot model update #######
   <!-- <node pkg="assemble_quadrotors" type="joint_state_pub.py" name="joint_state_pub" ns="$(arg robot_ns)"/> -->
 
+  <node name="gzterminate" pkg="aerial_robot_base" type="gazebo_shutdown.py" />
+
 </launch>
