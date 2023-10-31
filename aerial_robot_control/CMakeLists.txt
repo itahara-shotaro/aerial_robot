@@ -57,7 +57,9 @@ target_link_libraries(control_utils ${EIGEN3_LIBRARIES})
 add_library(flight_control_pluginlib
   src/control/pose_linear_controller.cpp
   src/control/fully_actuated_controller.cpp
-  src/control/under_actuated_controller.cpp)
+  src/control/under_actuated_controller.cpp
+  src/control/fully_actuated_nobend_controller.cpp
+  )
 
 target_link_libraries(flight_control_pluginlib ${catkin_LIBRARIES})
 add_dependencies(flight_control_pluginlib  ${PROJECT_NAME}_gencfg)
