@@ -115,44 +115,92 @@ namespace aerial_robot_control
     //Step0.5: obtain the normal vectors of thrusts
     std::vector<Eigen::Vector3d> rotors_normal = robot_model_->getRotorsNormalFromCog<Eigen::Vector3d>();
 
-    // Step1: create new Q-matrix
-    
-    Eigen::MatrixXd Q_new_test(7,8);
-    Eigen::VectorXd Q_row6 = Eigen::VectorXd::Zero(8), Q_row7 = Eigen::VectorXd::Zero(8);
-    
-    for(int i=0;i<4;i++){
-      Q_row6(i) = (q_mat.row(4))(i);
-      Q_row7(i+4) = (q_mat.row(4))(i+4);
+    Eigen::VectorXd target_thrust_x_term;
+    Eigen::VectorXd target_thrust_y_term;
+    Eigen::VectorXd target_thrust_z_term;
+    Eigen::VectorXd target_thrust_soft_term; 
+
+    if(control_method == 0){
+      // Step1: create new Q-matrix
+      Eigen::MatrixXd Q_new_test(7,8);
+      Eigen::VectorXd Q_row6 = Eigen::VectorXd::Zero(8), Q_row7 = Eigen::VectorXd::Zero(8);
+      
+      for(int i=0;i<4;i++){
+        Q_row6(i) = (q_mat.row(4))(i);
+        Q_row7(i+4) = (q_mat.row(4))(i+4);
+      }
+      Q_new_test<<q_mat.row(0), q_mat.row(1), q_mat.row(2), q_mat.row(3) ,q_mat.row(5), Q_row6.transpose(),Q_row7.transpose();
+
+      // Step2: calculate SR-inverse of the new Q
+
+      double sr_inverse_sigma = 0.1;
+      Eigen::MatrixXd q = Q_new_test;
+      Eigen::MatrixXd q_q_t = q * q.transpose();
+      Eigen::MatrixXd sr_inv = q.transpose() * (q_q_t + sr_inverse_sigma* Eigen::MatrixXd::Identity(q_q_t.cols(), q_q_t.rows())).inverse();
+
+      q_mat_inv_=sr_inv;
+      // ROS_INFO_STREAM(testaaaa);
+      
+      //step3: calculate thrust accounting for softness & linear acc
+
+      tf::Vector3 gravity_world(0,
+                                0,
+                                -9.8);
+      //gravity_world(3) = -9.8;
+      tf::Vector3 gravity_cog = uav_rot_pitch_yaw.inverse() * gravity_world;
+      Eigen::Vector3d gravity_CoG(gravity_cog.x(), gravity_cog.y(), gravity_cog.z() );
+
+      Eigen::VectorXd thrust_constant = Eigen::VectorXd::Zero(8);
+      thrust_constant << 0,0,0,0,0,(mass/2)*(pCoG_1.cross(gravity_CoG)).y(),(mass/2)*(pCoG_2.cross(gravity_CoG)).y();
+      
+      target_thrust_x_term = q_mat_inv_.col(X) * target_acc_cog.x();
+      target_thrust_y_term = q_mat_inv_.col(Y) * target_acc_cog.y();
+      target_thrust_z_term = q_mat_inv_.col(Z) * target_acc_cog.z();
+      target_thrust_soft_term = -1*(q_mat_inv_*thrust_constant);
+      // ROS_INFO_STREAM(target_thrust_soft_term);
     }
-    Q_new_test<<q_mat.row(0), q_mat.row(1), q_mat.row(2), q_mat.row(3) ,q_mat.row(5), Q_row6.transpose(),Q_row7.transpose();
+    else{
+      //
+      double mass_inv =  1 / robot_model_->getMass();
+      Eigen::MatrixXd WrenchMatrixOnCoG = robot_model_->calcWrenchMatrixOnCoG();
+      Eigen::MatrixXd q_bottom_q1(3,8), q_bottom_q2(3,8), q1_bottom(3,8), q2_bottom(3,8);
 
-    // Step2: calculate SR-inverse of the new Q
+      q_bottom_q1 = WrenchMatrixOnCoG.bottomRows(3);
+      q_bottom_q2 = WrenchMatrixOnCoG.bottomRows(3);
+      
+      Eigen::VectorXd Q_row6 = Eigen::VectorXd::Zero(8), Q_row7 = Eigen::VectorXd::Zero(8);
+      
+      for(int i=0;i<4;i++){
+        Q_row6(i) = ( (rotors_origin[i]-pCoG_1).cross(rotors_normal[i]) ).y();
+        Q_row7(i+4) = ( (rotors_origin[i+4]-pCoG_2).cross(rotors_normal[i+4]) ).y();
+      }
 
-    double sr_inverse_sigma = 0.1;
-    Eigen::MatrixXd q = Q_new_test;
-    Eigen::MatrixXd q_q_t = q * q.transpose();
-    Eigen::MatrixXd sr_inv = q.transpose() * (q_q_t + sr_inverse_sigma* Eigen::MatrixXd::Identity(q_q_t.cols(), q_q_t.rows())).inverse();
+      q_bottom_q1.row(1)=Q_row6;
+      q_bottom_q2.row(1)=Q_row7;
 
-    q_mat_inv_=sr_inv;
-    // ROS_INFO_STREAM(testaaaa);
+      q1_bottom = inertia_inv * q_bottom_q1;
+      q2_bottom = inertia_inv * q_bottom_q2;
+
+
+      //ROS_INFO_STREAM(rotors_normal[0]);
+      Eigen::MatrixXd Q_new_test(7,8);
+      Q_new_test<<q_mat_.row(0), q_mat_.row(1), q_mat_.row(2), q_mat_.row(3) ,q_mat_.row(5), q1_bottom.row(1), q2_bottom.row(1);
     
-    //step3: calculate thrust accounting for softness & linear acc
+      // Step2: calculate SR-inverse of the new Q
+      double sr_inverse_sigma = 0.1;
+      Eigen::MatrixXd q = Q_new_test;
+      Eigen::MatrixXd q_q_t = q * q.transpose();
+      Eigen::MatrixXd sr_inv = q.transpose() * (q_q_t + sr_inverse_sigma* Eigen::MatrixXd::Identity(q_q_t.cols(), q_q_t.rows())).inverse();
 
-    tf::Vector3 gravity_world(0,
-                              0,
-                              -9.8);
-    //gravity_world(3) = -9.8;
-    tf::Vector3 gravity_cog = uav_rot_pitch_yaw.inverse() * gravity_world;
-    Eigen::Vector3d gravity_CoG(gravity_cog.x(), gravity_cog.y(), gravity_cog.z() );
+      q_mat_inv_=sr_inv;
 
-    Eigen::VectorXd thrust_constant = Eigen::VectorXd::Zero(8);
-    thrust_constant << 0,0,0,0,0,(mass/2)*(pCoG_1.cross(gravity_CoG)).y(),(mass/2)*(pCoG_2.cross(gravity_CoG)).y();
+      //step3: calculate thrust accounting for softness & linear acc
+      target_thrust_x_term = q_mat_inv_.col(X) * target_acc_cog.x();
+      target_thrust_y_term = q_mat_inv_.col(Y) * target_acc_cog.y();
+      target_thrust_z_term = q_mat_inv_.col(Z) * target_acc_cog.z();
+      target_thrust_soft_term = Eigen::VectorXd::Zero(8).transpose(); 
     
-    Eigen::VectorXd target_thrust_x_term = q_mat_inv_.col(X) * target_acc_cog.x();
-    Eigen::VectorXd target_thrust_y_term = q_mat_inv_.col(Y) * target_acc_cog.y();
-    Eigen::VectorXd target_thrust_z_term = q_mat_inv_.col(Z) * target_acc_cog.z();
-    Eigen::VectorXd target_thrust_soft_term = -1*(q_mat_inv_*thrust_constant);
-    // ROS_INFO_STREAM(target_thrust_soft_term);
+    }
 
     // constraint x and y
     int index;
@@ -253,12 +301,13 @@ namespace aerial_robot_control
 
         spinal::TorqueAllocationMatrixInv torque_allocation_matrix_inv_msg;
         torque_allocation_matrix_inv_msg.rows.resize(motor_num_);
-        //Eigen::MatrixXd torque_allocation_matrix_inv = q_mat_inv_.rightCols(3); //ここでSpinalに送るところを指定
-        //Eigen::MatrixXd torque_allocation_matrix_inv = q_mat_inv_.middleCols(3,3);
         Eigen::MatrixXd torque_allocation_matrix_inv(8,3);
-        torque_allocation_matrix_inv<<q_mat_inv_.col(3),(q_mat_inv_.col(5) + q_mat_inv_.col(6)),q_mat_inv_.col(4);
-        //torque_allocation_matrix_inv<<q_mat_inv_.col(3),(q_mat_inv_.col(4)),q_mat_inv_.col(5);
-        //ROS_INFO_STREAM(torque_allocation_matrix_inv);
+        if(control_method == 0){
+          torque_allocation_matrix_inv<<q_mat_inv_.col(3),(q_mat_inv_.col(5) + q_mat_inv_.col(6)),q_mat_inv_.col(4);
+        }
+        else{
+          torque_allocation_matrix_inv<<q_mat_inv_.col(3),(q_mat_inv_.col(5)+q_mat_inv_.col(6)),q_mat_inv_.col(4);
+        }
         if (torque_allocation_matrix_inv.cwiseAbs().maxCoeff() > INT16_MAX * 0.001f)
           ROS_ERROR("Torque Allocation Matrix overflow");
         for (unsigned int i = 0; i < motor_num_; i++)

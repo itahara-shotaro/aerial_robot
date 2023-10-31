@@ -28,7 +28,7 @@ void AssembleController::initialize(ros::NodeHandle nh,
   assemble_control_nh.param("wrench_allocation_matrix_pub_interval", wrench_allocation_matrix_pub_interval_, 0.1);
   assemble_control_nh.param("trans_rate", trans_rate_, 1.0);
 
-  assemble_mode_controller_ = boost::make_shared<FullyActuatedController>();
+  assemble_mode_controller_ = boost::make_shared<FullyActuatedNobendController>();
   dessemble_mode_controller_ = boost::make_shared<HydrusTiltedLQIController>();
   current_assemble_ = assemble_robot_model_->isAssemble();
 
@@ -104,7 +104,7 @@ void AssembleController::sendCmd(){
   if(assemble_robot_model_->isAssemble()){
     assemble_mode_controller_->PoseLinearController::sendCmd();
     spinal::FourAxisCommand flight_command_data;
-    flight_command_data.angles[0] = navigator_->getTargetRPY().x(); //probrem
+    flight_command_data.angles[0] = navigator_->getTargetRPY().x(); //problem
     flight_command_data.angles[1] = navigator_->getTargetRPY().y();
     flight_command_data.angles[2] = assemble_mode_controller_->getCandidateYawTerm() ;
     // choose correct 4 elements
@@ -139,7 +139,11 @@ void AssembleController::sendCmd(){
     // copy from  sendTorqueAllocationMatrixInv(); in fully_actuated_controller.cpp
     spinal::TorqueAllocationMatrixInv torque_allocation_matrix_inv_msg;
     torque_allocation_matrix_inv_msg.rows.resize(4); //resize row of torque_allocation_matrix_inv to 4 for quadrotor
-    Eigen::MatrixXd torque_allocation_matrix_inv = assemble_mode_controller_->getQMatInv().rightCols(3);
+    // Eigen::MatrixXd torque_allocation_matrix_inv = assemble_mode_controller_->getQMatInv().rightCols(3); //R^(8x3)
+    Eigen::MatrixXd q_mat_inv_ = assemble_mode_controller_->getQMatInv();
+    Eigen::MatrixXd torque_allocation_matrix_inv(8,3);
+    torque_allocation_matrix_inv<<q_mat_inv_.col(3),(q_mat_inv_.col(5) + q_mat_inv_.col(6)),q_mat_inv_.col(4); //R^(8x3)
+
     if (torque_allocation_matrix_inv.cwiseAbs().maxCoeff() > INT16_MAX * 0.001f)
       ROS_ERROR("Torque Allocation Matrix overflow");
 

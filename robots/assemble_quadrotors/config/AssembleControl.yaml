@@ -2,6 +2,7 @@ aerial_robot_control_name: aerial_robot_control/assemble_controller
 
 assemble:
   controller:
+    control_method : 0 # 0 for CoG_torque, 1 for Quadrotor_torque
     torque_allocation_matrix_inv_pub_interval: 0.05
     wrench_allocation_matrix_pub_interval: 0.1
     trans_rate : 0.999 #0.894
