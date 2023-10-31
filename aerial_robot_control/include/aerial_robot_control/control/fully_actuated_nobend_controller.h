@@ -93,6 +93,7 @@ namespace aerial_robot_control
     ros::Publisher flight_cmd_pub_; //for spinal
     double torque_allocation_matrix_inv_pub_interval_;
     double wrench_allocation_matrix_pub_interval_;
+    int control_method;
     void rosParamInit();
 
 

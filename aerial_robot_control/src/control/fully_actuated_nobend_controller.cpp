@@ -89,7 +89,7 @@ namespace aerial_robot_control
     tf::Vector3 target_acc_w(pid_controllers_.at(X).result(),
                              pid_controllers_.at(Y).result(),
                              pid_controllers_.at(Z).result());
-    tf::Vector3 target_acc_cog = uav_rot.inverse() * target_acc_w;
+    tf::Vector3 target_acc_cog = uav_rot_pitch_yaw.inverse() * target_acc_w;
     //tf::Vector3 target_acc_cog = uav_rot_yaw.inverse() * target_acc_w; 
     // should use uav_rot_yaw in place for uav_rot for real flight
 
@@ -116,10 +116,6 @@ namespace aerial_robot_control
     std::vector<Eigen::Vector3d> rotors_normal = robot_model_->getRotorsNormalFromCog<Eigen::Vector3d>();
 
     // Step1: create new Q-matrix
-  
-    Eigen::MatrixXd Q_new(7,8);
-    Q_new<<q_mat,q_mat.row(2);
-
     
     Eigen::MatrixXd Q_new_test(7,8);
     Eigen::VectorXd Q_row6 = Eigen::VectorXd::Zero(8), Q_row7 = Eigen::VectorXd::Zero(8);
@@ -138,6 +134,7 @@ namespace aerial_robot_control
     Eigen::MatrixXd sr_inv = q.transpose() * (q_q_t + sr_inverse_sigma* Eigen::MatrixXd::Identity(q_q_t.cols(), q_q_t.rows())).inverse();
 
     q_mat_inv_=sr_inv;
+    // ROS_INFO_STREAM(testaaaa);
     
     //step3: calculate thrust accounting for softness & linear acc
 
@@ -145,7 +142,7 @@ namespace aerial_robot_control
                               0,
                               -9.8);
     //gravity_world(3) = -9.8;
-    tf::Vector3 gravity_cog = uav_rot.inverse() * gravity_world;
+    tf::Vector3 gravity_cog = uav_rot_pitch_yaw.inverse() * gravity_world;
     Eigen::Vector3d gravity_CoG(gravity_cog.x(), gravity_cog.y(), gravity_cog.z() );
 
     Eigen::VectorXd thrust_constant = Eigen::VectorXd::Zero(8);
@@ -259,7 +256,7 @@ namespace aerial_robot_control
         //Eigen::MatrixXd torque_allocation_matrix_inv = q_mat_inv_.rightCols(3); //ここでSpinalに送るところを指定
         //Eigen::MatrixXd torque_allocation_matrix_inv = q_mat_inv_.middleCols(3,3);
         Eigen::MatrixXd torque_allocation_matrix_inv(8,3);
-        torque_allocation_matrix_inv<<q_mat_inv_.col(3),(q_mat_inv_.col(5)),q_mat_inv_.col(4);
+        torque_allocation_matrix_inv<<q_mat_inv_.col(3),(q_mat_inv_.col(5) + q_mat_inv_.col(6)),q_mat_inv_.col(4);
         //torque_allocation_matrix_inv<<q_mat_inv_.col(3),(q_mat_inv_.col(4)),q_mat_inv_.col(5);
         //ROS_INFO_STREAM(torque_allocation_matrix_inv);
         if (torque_allocation_matrix_inv.cwiseAbs().maxCoeff() > INT16_MAX * 0.001f)
@@ -279,6 +276,7 @@ namespace aerial_robot_control
     ros::NodeHandle control_nh(nh_, "controller");
     getParam<double>(control_nh, "torque_allocation_matrix_inv_pub_interval", torque_allocation_matrix_inv_pub_interval_, 0.05);
     getParam<double>(control_nh, "wrench_allocation_matrix_pub_interval", wrench_allocation_matrix_pub_interval_, 0.1);
+    getParam<int>(control_nh, "control_method", control_method, 0);
   }
 
   void FullyActuatedNobendController::setAttitudeGains()

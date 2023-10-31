@@ -37,6 +37,7 @@
 
 #include <hydrus/hydrus_tilted_lqi_controller.h>
 #include <aerial_robot_control/control/fully_actuated_controller.h>
+#include <aerial_robot_control/control/fully_actuated_nobend_controller.h>
 #include <assemble_quadrotors/model/assemble_robot_model.h>
 #include <numeric>
 namespace aerial_robot_control
@@ -82,7 +83,7 @@ namespace aerial_robot_control
     double dessemble_base_thrust_sum_;
 
     boost::shared_ptr<HydrusTiltedLQIController> dessemble_mode_controller_;
-    boost::shared_ptr<FullyActuatedController> assemble_mode_controller_;
+    boost::shared_ptr<FullyActuatedNobendController> assemble_mode_controller_;
 
     ros::Publisher desired_baselink_rot_pub_;
 
