@@ -39,7 +39,6 @@
 #include <spinal/FourAxisCommand.h>
 #include <spinal/RollPitchYawTerms.h>
 #include <spinal/TorqueAllocationMatrixInv.h>
-#include <nlopt.hpp>
 
 using boost::algorithm::clamp;
 
@@ -79,7 +78,6 @@ namespace aerial_robot_control
     void sendFourAxisCommand();
     void sendTorqueAllocationMatrixInv();
 
-    boost::shared_ptr<nlopt::opt> thrust_solver_; // solver for the optimization problem
     double SRinv_cost; //cost function
     double constraint_1;// constraint function for robot 1
     double constraint_2;// constraint function for robot 2
