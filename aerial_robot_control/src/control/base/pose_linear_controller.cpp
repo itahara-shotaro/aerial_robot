@@ -339,7 +339,23 @@ namespace aerial_robot_control
     pid_msg_.z.target_d = target_vel_.z();
     pid_msg_.z.err_d = target_vel_.z() - vel_.z();
 
-    // omit roll, pitch here
+    pid_msg_.roll.total.at(0) = pid_controllers_.at(ROLL).result();
+    pid_msg_.roll.p_term.at(0) = pid_controllers_.at(ROLL).getPTerm();
+    pid_msg_.roll.i_term.at(0) = pid_controllers_.at(ROLL).getITerm();
+    pid_msg_.roll.d_term.at(0) = pid_controllers_.at(ROLL).getDTerm();
+    pid_msg_.roll.target_p = target_rpy_.x();
+    pid_msg_.roll.err_p = target_rpy_.x() - rpy_.x();
+    pid_msg_.roll.target_d = target_omega_.x();
+    pid_msg_.roll.err_d = target_omega_.x() - omega_.x();
+
+    pid_msg_.pitch.total.at(0) = pid_controllers_.at(PITCH).result();
+    pid_msg_.pitch.p_term.at(0) = pid_controllers_.at(PITCH).getPTerm();
+    pid_msg_.pitch.i_term.at(0) = pid_controllers_.at(PITCH).getITerm();
+    pid_msg_.pitch.d_term.at(0) = pid_controllers_.at(PITCH).getDTerm();
+    pid_msg_.pitch.target_p = target_rpy_.y();
+    pid_msg_.pitch.err_p = target_rpy_.y() - rpy_.y();
+    pid_msg_.pitch.target_d = target_omega_.y();
+    pid_msg_.pitch.err_d = target_omega_.y() - omega_.y();
 
     pid_msg_.yaw.total.at(0) = pid_controllers_.at(YAW).result();
     pid_msg_.yaw.p_term.at(0) = pid_controllers_.at(YAW).getPTerm();
