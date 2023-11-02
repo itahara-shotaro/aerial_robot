@@ -95,6 +95,8 @@ namespace aerial_robot_control
     double wrench_allocation_matrix_pub_interval_;
     void rosParamInit();
 
+    int control_method;
+
 
   };
 } //namespace aerial_robot_control
