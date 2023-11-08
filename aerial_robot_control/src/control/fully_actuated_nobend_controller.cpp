@@ -120,6 +120,7 @@ namespace aerial_robot_control
     Eigen::VectorXd target_thrust_z_term;
     Eigen::VectorXd target_thrust_soft_term; 
 
+    // method 1
     if(control_method == 0){
       // Step1: create new Q-matrix
       Eigen::MatrixXd Q_new_test(7,8);
@@ -159,6 +160,8 @@ namespace aerial_robot_control
       target_thrust_soft_term = -1*(q_mat_inv_*thrust_constant);
       // ROS_INFO_STREAM(target_thrust_soft_term);
     }
+
+    // method 2
     else{
       //
       double mass_inv =  1 / robot_model_->getMass();
@@ -178,13 +181,13 @@ namespace aerial_robot_control
       q_bottom_q1.row(1)=Q_row6;
       q_bottom_q2.row(1)=Q_row7;
 
-      q1_bottom = inertia_inv * q_bottom_q1;
-      q2_bottom = inertia_inv * q_bottom_q2;
+      q1_bottom = q_bottom_q1;
+      q2_bottom = q_bottom_q2;
 
 
       //ROS_INFO_STREAM(rotors_normal[0]);
       Eigen::MatrixXd Q_new_test(7,8);
-      Q_new_test<<q_mat_.row(0), q_mat_.row(1), q_mat_.row(2), q_mat_.row(3) ,q_mat_.row(5), q1_bottom.row(1), q2_bottom.row(1);
+      Q_new_test<<q_mat.row(0), q_mat.row(1), q_mat.row(2), q_mat.row(3) ,q_mat.row(5), q1_bottom.row(1), q2_bottom.row(1);
     
       // Step2: calculate SR-inverse of the new Q
       double sr_inverse_sigma = 0.1;
