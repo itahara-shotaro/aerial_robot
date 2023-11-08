@@ -1,6 +1,7 @@
 aerial_robot_control_name: aerial_robot_control/fully_actuated_nobend_controller
 
 controller:
+  control_method : 0
   xy:
     p_gain: 2.5
     i_gain: 0.05
