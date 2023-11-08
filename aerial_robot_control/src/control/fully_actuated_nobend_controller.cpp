@@ -120,50 +120,63 @@ namespace aerial_robot_control
     Eigen::VectorXd target_thrust_z_term;
     Eigen::VectorXd target_thrust_soft_term;
 
-    if(control_method == 0){
-      // Step1: create new Q-matrix
-    
-      Eigen::MatrixXd Q_new(7,8);
-      Q_new<<q_mat,q_mat.row(2);
+    if(control_method == 0){ // method 1
+      
+      if(start_rp_integration_){ // 離陸後
+        // Step1: create new Q-matrix
+        
+        Eigen::MatrixXd Q_new_test(7,8);
+        Eigen::VectorXd Q_row6 = Eigen::VectorXd::Zero(8), Q_row7 = Eigen::VectorXd::Zero(8);
+        
+        for(int i=0;i<4;i++){
+          Q_row6(i) = (q_mat.row(4))(i);
+          Q_row7(i+4) = (q_mat.row(4))(i+4);
+        }
+        Q_new_test<<q_mat.row(0), q_mat.row(1), q_mat.row(2), q_mat.row(3) ,q_mat.row(5), Q_row6.transpose(),Q_row7.transpose();
 
-      
-      Eigen::MatrixXd Q_new_test(7,8);
-      Eigen::VectorXd Q_row6 = Eigen::VectorXd::Zero(8), Q_row7 = Eigen::VectorXd::Zero(8);
-      
-      for(int i=0;i<4;i++){
-        Q_row6(i) = (q_mat.row(4))(i);
-        Q_row7(i+4) = (q_mat.row(4))(i+4);
+        // Step2: calculate SR-inverse of the new Q
+
+        double sr_inverse_sigma = 0.1;
+        Eigen::MatrixXd q = Q_new_test;
+        Eigen::MatrixXd q_q_t = q * q.transpose();
+        Eigen::MatrixXd sr_inv = q.transpose() * (q_q_t + sr_inverse_sigma* Eigen::MatrixXd::Identity(q_q_t.cols(), q_q_t.rows())).inverse();
+
+        q_mat_inv_=sr_inv;
+        
+        //step3: calculate thrust accounting for softness & linear acc
+
+        tf::Vector3 gravity_world(0,
+                                  0,
+                                  -9.8);
+        //gravity_world(3) = -9.8;
+        tf::Vector3 gravity_cog = uav_rot.inverse() * gravity_world;
+        Eigen::Vector3d gravity_CoG(gravity_cog.x(), gravity_cog.y(), gravity_cog.z() );
+
+        Eigen::VectorXd thrust_constant = Eigen::VectorXd::Zero(8);
+        thrust_constant << 0,0,0,0,0,(mass/2)*(pCoG_1.cross(gravity_CoG)).y(),(mass/2)*(pCoG_2.cross(gravity_CoG)).y();
+        
+        target_thrust_x_term = q_mat_inv_.col(X) * target_acc_cog.x();
+        target_thrust_y_term = q_mat_inv_.col(Y) * target_acc_cog.y();
+        target_thrust_z_term = q_mat_inv_.col(Z) * target_acc_cog.z();
+        target_thrust_soft_term = -1*(q_mat_inv_*thrust_constant);
       }
-      Q_new_test<<q_mat.row(0), q_mat.row(1), q_mat.row(2), q_mat.row(3) ,q_mat.row(5), Q_row6.transpose(),Q_row7.transpose();
+      else{ // 離陸前 or 離陸中
+        Eigen::MatrixXd Q_new_test(7,8);
+        Q_new_test<<q_mat.row(0), q_mat.row(1), q_mat.row(2), q_mat.row(3) ,q_mat.row(5),q_mat.row(4)/2, q_mat.row(4)/2 ;
+        double sr_inverse_sigma = 0.1;
+        Eigen::MatrixXd q = Q_new_test;
+        Eigen::MatrixXd q_q_t = q * q.transpose();
+        Eigen::MatrixXd sr_inv = q.transpose() * (q_q_t + sr_inverse_sigma* Eigen::MatrixXd::Identity(q_q_t.cols(), q_q_t.rows())).inverse();
 
-      // Step2: calculate SR-inverse of the new Q
-
-      double sr_inverse_sigma = 0.1;
-      Eigen::MatrixXd q = Q_new_test;
-      Eigen::MatrixXd q_q_t = q * q.transpose();
-      Eigen::MatrixXd sr_inv = q.transpose() * (q_q_t + sr_inverse_sigma* Eigen::MatrixXd::Identity(q_q_t.cols(), q_q_t.rows())).inverse();
-
-      q_mat_inv_=sr_inv;
-      
-      //step3: calculate thrust accounting for softness & linear acc
-
-      tf::Vector3 gravity_world(0,
-                                0,
-                                -9.8);
-      //gravity_world(3) = -9.8;
-      tf::Vector3 gravity_cog = uav_rot.inverse() * gravity_world;
-      Eigen::Vector3d gravity_CoG(gravity_cog.x(), gravity_cog.y(), gravity_cog.z() );
-
-      Eigen::VectorXd thrust_constant = Eigen::VectorXd::Zero(8);
-      thrust_constant << 0,0,0,0,0,(mass/2)*(pCoG_1.cross(gravity_CoG)).y(),(mass/2)*(pCoG_2.cross(gravity_CoG)).y();
-      
-      target_thrust_x_term = q_mat_inv_.col(X) * target_acc_cog.x();
-      target_thrust_y_term = q_mat_inv_.col(Y) * target_acc_cog.y();
-      target_thrust_z_term = q_mat_inv_.col(Z) * target_acc_cog.z();
-      target_thrust_soft_term = -1*(q_mat_inv_*thrust_constant);
+        q_mat_inv_=sr_inv;
+        target_thrust_x_term = q_mat_inv_.col(X) * target_acc_cog.x();
+        target_thrust_y_term = q_mat_inv_.col(Y) * target_acc_cog.y();
+        target_thrust_z_term = q_mat_inv_.col(Z) * target_acc_cog.z();
+        target_thrust_soft_term = Eigen::VectorXd::Zero(8).transpose();
+      }
     }
 
-    else{
+    else{ // method 2
       Eigen::MatrixXd WrenchMatrixOnCoG = robot_model_->calcWrenchMatrixOnCoG();
       Eigen::MatrixXd q_bottom_q1(3,8), q_bottom_q2(3,8), q1_bottom(3,8), q2_bottom(3,8);
 
@@ -180,13 +193,13 @@ namespace aerial_robot_control
       q_bottom_q1.row(1)=Q_row6;
       q_bottom_q2.row(1)=Q_row7;
 
-      q1_bottom = inertia_inv * q_bottom_q1;
-      q2_bottom = inertia_inv * q_bottom_q2;
+      q1_bottom = q_bottom_q1;
+      q2_bottom = q_bottom_q2;
 
 
-      //ROS_INFO_STREAM(rotors_normal[0]);
+
       Eigen::MatrixXd Q_new_test(7,8);
-      Q_new_test<<q_mat_.row(0), q_mat_.row(1), q_mat_.row(2), q_mat_.row(3) ,q_mat_.row(5), q1_bottom.row(1), q2_bottom.row(1);
+      Q_new_test<<q_mat.row(0), q_mat.row(1), q_mat.row(2), q_mat.row(3) ,q_mat.row(5), q1_bottom.row(1), q2_bottom.row(1);
     
       // Step2: calculate SR-inverse of the new Q
       double sr_inverse_sigma = 0.1;
