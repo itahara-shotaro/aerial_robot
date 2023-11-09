@@ -89,7 +89,7 @@ namespace aerial_robot_control
     tf::Vector3 target_acc_w(pid_controllers_.at(X).result(),
                              pid_controllers_.at(Y).result(),
                              pid_controllers_.at(Z).result());
-    tf::Vector3 target_acc_cog = uav_rot_pitch_yaw.inverse() * target_acc_w;
+    tf::Vector3 target_acc_cog = uav_rot_yaw.inverse() * target_acc_w;
     //tf::Vector3 target_acc_cog = uav_rot_yaw.inverse() * target_acc_w; 
     // should use uav_rot_yaw in place for uav_rot for real flight
 
