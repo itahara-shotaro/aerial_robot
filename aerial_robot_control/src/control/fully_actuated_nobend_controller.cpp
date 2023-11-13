@@ -122,25 +122,35 @@ namespace aerial_robot_control
 
     if(control_method == 0){ // method 1
       
-      if(start_rp_integration_){ // 離陸後
+      if(start_rp_integration_ || true){ // 離陸後
         // Step1: create new Q-matrix
         
-        Eigen::MatrixXd Q_new_test(7,8);
-        Eigen::VectorXd Q_row6 = Eigen::VectorXd::Zero(8), Q_row7 = Eigen::VectorXd::Zero(8);
+        Eigen::MatrixXd Q_new_test(8,8);
+        Eigen::VectorXd Q_row4 = Eigen::VectorXd::Zero(8), Q_row5 = Eigen::VectorXd::Zero(8); // yaw
+        Eigen::VectorXd Q_row6 = Eigen::VectorXd::Zero(8), Q_row7 = Eigen::VectorXd::Zero(8); // pitch
         
         for(int i=0;i<4;i++){
+          // yaw
+          Q_row4(i) = (q_mat.row(5))(i);
+          Q_row5(i+4) = (q_mat.row(5))(i+4);
+
+          // pitch
           Q_row6(i) = (q_mat.row(4))(i);
           Q_row7(i+4) = (q_mat.row(4))(i+4);
         }
-        Q_new_test<<q_mat.row(0), q_mat.row(1), q_mat.row(2), q_mat.row(3) ,q_mat.row(5), Q_row6.transpose(),Q_row7.transpose();
+        Q_new_test<<q_mat.row(0), q_mat.row(1), q_mat.row(2), q_mat.row(3), Q_row4.transpose(), Q_row5.transpose(), Q_row6.transpose(),Q_row7.transpose();
 
         // Step2: calculate SR-inverse of the new Q
 
-        double sr_inverse_sigma = 0.1;
+        double sr_inverse_sigma = 1;
         Eigen::MatrixXd q = Q_new_test;
         Eigen::MatrixXd q_q_t = q * q.transpose();
         Eigen::MatrixXd sr_inv = q.transpose() * (q_q_t + sr_inverse_sigma* Eigen::MatrixXd::Identity(q_q_t.cols(), q_q_t.rows())).inverse();
 
+        sr_inv.block(4,4,4,1) = Eigen::Vector4d::Zero(4);
+        sr_inv.block(0,5,4,1) = Eigen::Vector4d::Zero(4);
+        sr_inv.block(4,6,4,1) = Eigen::Vector4d::Zero(4);
+        sr_inv.block(0,7,4,1) = Eigen::Vector4d::Zero(4);
         q_mat_inv_=sr_inv;
         
         //step3: calculate thrust accounting for softness & linear acc
@@ -153,16 +163,19 @@ namespace aerial_robot_control
         Eigen::Vector3d gravity_CoG(gravity_cog.x(), gravity_cog.y(), gravity_cog.z() );
 
         Eigen::VectorXd thrust_constant = Eigen::VectorXd::Zero(8);
-        thrust_constant << 0,0,0,0,0,(mass/2)*(pCoG_1.cross(gravity_CoG)).y(),(mass/2)*(pCoG_2.cross(gravity_CoG)).y();
+        //thrust_constant << 0,0,0,0,0,(mass/2)*(pCoG_1.cross(gravity_CoG)).y(),(mass/2)*(pCoG_2.cross(gravity_CoG)).y();
         
         target_thrust_x_term = q_mat_inv_.col(X) * target_acc_cog.x();
         target_thrust_y_term = q_mat_inv_.col(Y) * target_acc_cog.y();
         target_thrust_z_term = q_mat_inv_.col(Z) * target_acc_cog.z();
         target_thrust_soft_term = -1*(q_mat_inv_*thrust_constant);
+
+        // ROS_INFO_STREAM(q_mat_inv_);
+        // ROS_INFO_STREAM(Q_new_test);
       }
       else{ // 離陸前 or 離陸中
-        Eigen::MatrixXd Q_new_test(7,8);
-        Q_new_test<<q_mat.row(0), q_mat.row(1), q_mat.row(2), q_mat.row(3) ,q_mat.row(5),q_mat.row(4)/2, q_mat.row(4)/2 ;
+        Eigen::MatrixXd Q_new_test(8,8);
+        Q_new_test<<q_mat.row(0), q_mat.row(1), q_mat.row(2), q_mat.row(3) ,q_mat.row(5)/2,q_mat.row(5)/2,q_mat.row(4)/2, q_mat.row(4)/2 ;
         double sr_inverse_sigma = 0.1;
         Eigen::MatrixXd q = Q_new_test;
         Eigen::MatrixXd q_q_t = q * q.transpose();
@@ -317,7 +330,7 @@ namespace aerial_robot_control
         //Eigen::MatrixXd torque_allocation_matrix_inv = q_mat_inv_.rightCols(3); //ここでSpinalに送るところを指定
         //Eigen::MatrixXd torque_allocation_matrix_inv = q_mat_inv_.middleCols(3,3);
         Eigen::MatrixXd torque_allocation_matrix_inv(8,3);
-        torque_allocation_matrix_inv<<q_mat_inv_.col(3),(q_mat_inv_.col(5)+q_mat_inv_.col(6)),q_mat_inv_.col(4);
+        torque_allocation_matrix_inv<<q_mat_inv_.col(3),(q_mat_inv_.col(6)+q_mat_inv_.col(7)),(q_mat_inv_.col(4)+q_mat_inv_.col(5));
         //torque_allocation_matrix_inv<<q_mat_inv_.col(3),(q_mat_inv_.col(4)),q_mat_inv_.col(5);
         //ROS_INFO_STREAM(torque_allocation_matrix_inv);
         if (torque_allocation_matrix_inv.cwiseAbs().maxCoeff() > INT16_MAX * 0.001f)
