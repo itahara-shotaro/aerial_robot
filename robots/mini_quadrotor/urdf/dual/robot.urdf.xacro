@@ -130,9 +130,9 @@
     </collision>
   </link>
 
-  <link name="flex_link">
+  <link name="flex_link1">
     <inertial>
-      <origin xyz="${-flex_link_length/2} 0 0" rpy="0 ${pi/2} 0"/>
+      <origin xyz="${-flex_link_length/8} 0 0" rpy="0 ${pi/2} 0"/>
       <mass value="0.05"/>
       <inertia
           ixx="0.000001" ixy="0.0" ixz="0.0"
@@ -140,9 +140,40 @@
           izz="0.000002"/>
     </inertial>
       <visual>
-        <origin xyz="${-flex_link_length/2} 0 0" rpy="0 ${pi/2} 0"/>
+        <origin xyz="${-flex_link_length/4} 0 0" rpy="0 ${pi/2} 0"/>
         <geometry>
-          <cylinder length="${flex_link_length}" radius="0.03"/>
+          <cylinder length="${flex_link_length/2}" radius="0.03"/>
+        </geometry>
+        <material name="green">
+          <color rgba="0.0 1.0 0.0 2.0"/>
+        </material>
+      </visual>
+  </link>
+
+  <link name="dummy_flex_link">
+    <inertial>
+      <origin xyz="0.000001 0 0" rpy="0 0 0"/>
+      <mass value="0.05"/>
+      <inertia
+          ixx="0.000001" ixy="0.0" ixz="0.0"
+          iyy="0.000001" iyz="0.0"
+          izz="0.000002"/>
+    </inertial>
+  </link>
+  
+  <link name="flex_link2">
+    <inertial>
+      <origin xyz="${-flex_link_length/8} 0 0" rpy="0 ${pi/2} 0"/>
+      <mass value="0.05"/>
+      <inertia
+          ixx="0.000001" ixy="0.0" ixz="0.0"
+          iyy="0.000001" iyz="0.0"
+          izz="0.000002"/>
+    </inertial>
+      <visual>
+        <origin xyz="${-flex_link_length/4} 0 0" rpy="0 ${pi/2} 0"/>
+        <geometry>
+          <cylinder length="${flex_link_length/2}" radius="0.03"/>
         </geometry>
         <material name="green">
           <color rgba="0.0 1.0 0.0 2.0"/>
@@ -151,14 +182,39 @@
   </link>
 
   <!-- <joint name="flex_joint1" type="revolute"> -->
-  <joint name="flex_joint1" type="fixed">
+  <joint name="body_joint1" type="fixed">
     <parent link="main_body1"/>
-    <child link="flex_link"/>
+    <child link="flex_link1"/>
     <origin rpy="0 0 0" xyz="0 0 ${-flex_joint_offset_z}"/>
     <axis xyz="1 0 0"/>
     <limit effort="0.001" lower="${-pi/2}" upper="${pi/2}" velocity="1"/>
     <dynamics damping="0.1" friction="0.0"/>
   </joint>
+  
+  <joint name="flex_joint_p" type="revolute">
+    <parent link="flex_link1"/>
+    <child link="dummy_flex_link"/>
+    <origin rpy="0 0 0" xyz="${-flex_link_length/2} 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit effort="0.001" lower="${-pi/2}" upper="${pi/2}" velocity="1"/>
+    <dynamics damping="0.1" friction="0.0"/>
+  </joint>
+  <gazebo reference='flex_joint_p'>
+    <springReference>0</springReference>
+    <springStiffness>2</springStiffness>
+  </gazebo>
+
+  <joint name="flex_joint_y" type="revolute">
+    <parent link="dummy_flex_link"/>
+    <child link="flex_link2"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="0.001" lower="${-pi/2}" upper="${pi/2}" velocity="1"/>
+    <dynamics damping="0.1" friction="0.0"/>
+  </joint>
+  <gazebo reference='flex_joint_y'>
+    <springReference>0</springReference>
+    <springStiffness>2</springStiffness>
+  </gazebo>
 
   <!-- main_body2 -->
   <link name="main_body2">
@@ -184,10 +240,10 @@
     </collision>
   </link>
 
-  <joint name="flex_joint2" type="fixed">
-    <parent link="flex_link"/>
+  <joint name="body_joint2" type="fixed">
+    <parent link="flex_link2"/>
     <child link="main_body2"/>
-    <origin rpy="0 0 0" xyz="${-flex_link_length} 0 ${flex_joint_offset_z}"/>
+    <origin rpy="0 0 0" xyz="${-flex_link_length/2} 0 ${flex_joint_offset_z}"/>
     <axis xyz="1 0 0"/>
   </joint>
 
