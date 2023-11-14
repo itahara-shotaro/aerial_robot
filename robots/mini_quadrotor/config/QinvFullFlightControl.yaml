@@ -3,8 +3,8 @@ aerial_robot_control_name: aerial_robot_control/fully_actuated_nobend_controller
 controller:
   control_method : 0
   xy:
-    p_gain: 2.5
-    i_gain: 0.05
+    p_gain: 5
+    i_gain: 0.3
     d_gain: 1.5
     limit_sum: 3
     limit_p: 3
@@ -41,8 +41,8 @@ controller:
     limit_i: 10
     limit_d: 10
   yaw:
-    p_gain: 5
-    i_gain: 0.1
+    p_gain: 10
+    i_gain: 1
     d_gain: 0.5
     limit_sum: 6.0 # N for clamping thrust force
     limit_p: 4.0
