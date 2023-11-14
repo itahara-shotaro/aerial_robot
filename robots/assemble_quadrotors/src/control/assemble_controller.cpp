@@ -142,7 +142,7 @@ void AssembleController::sendCmd(){
     // Eigen::MatrixXd torque_allocation_matrix_inv = assemble_mode_controller_->getQMatInv().rightCols(3); //R^(8x3)
     Eigen::MatrixXd q_mat_inv_ = assemble_mode_controller_->getQMatInv();
     Eigen::MatrixXd torque_allocation_matrix_inv(8,3);
-    torque_allocation_matrix_inv<<q_mat_inv_.col(3),(q_mat_inv_.col(5) + q_mat_inv_.col(6)),q_mat_inv_.col(4); //R^(8x3)
+    torque_allocation_matrix_inv<<q_mat_inv_.col(3),(q_mat_inv_.col(6) + q_mat_inv_.col(7)),(q_mat_inv_.col(4) + q_mat_inv_.col(5)); //R^(8x3)
 
     if (torque_allocation_matrix_inv.cwiseAbs().maxCoeff() > INT16_MAX * 0.001f)
       ROS_ERROR("Torque Allocation Matrix overflow");
