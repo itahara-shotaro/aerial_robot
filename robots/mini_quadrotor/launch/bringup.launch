@@ -44,6 +44,9 @@
     ###########  Battery Config  ###########
     <rosparam file="$(arg config_dir)/Battery.yaml" command="load" />
 
+    ###########  Servo Config  ###########
+    <rosparam file="$(arg config_dir)/Servo.yaml" command="load" />    
+
     ###########  Control  ###########
     <rosparam file="$(arg config_dir)/LQIFlightControl.yaml" command="load" if="$(arg lqi_control_method)" />
     <rosparam file="$(arg config_dir)/QinvFlightControl.yaml" command="load" if="$(eval not arg('full_ctrl') and not arg('lqi_control_method'))"/>
@@ -75,7 +78,7 @@
     <arg name="robot_ns" value="$(arg robot_ns)" />
     <arg name="rviz_config" value="$(arg config_dir)/rviz_config" />
     <arg name="rviz_init_pose" value="$(arg config_dir)/RvizInit.yaml" />
-    <arg name="need_joint_state" value="true"/>
+    <arg name="need_joint_state" value="false" if ="$(eval arg('simulation') or arg('real_machine'))"/>
   </include>
 
   ###########  Sensors ###########
@@ -85,6 +88,10 @@
     <arg name="robot_ns" value="$(arg robot_ns)" />
     <arg name="robot_id" value="$(arg robot_id)" />
   </include >
+
+  ###########  Servo Bridge  ###########
+  <node pkg="aerial_robot_model" type="servo_bridge_node" name="servo_bridge" ns="$(arg robot_ns)" output="screen" />
+  
 
   ########## Simulation in Gazebo #########
   <include file="$(find aerial_robot_simulation)/launch/simulation.launch" if = "$(eval arg('simulation') and not arg('real_machine'))" >
