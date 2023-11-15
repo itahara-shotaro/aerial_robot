@@ -201,7 +201,7 @@
   </joint>
   <gazebo reference='flex_joint_p'>
     <springReference>0</springReference>
-    <springStiffness>2</springStiffness>
+    <springStiffness>10</springStiffness>
   </gazebo>
 
   <joint name="flex_joint_y" type="revolute">
@@ -213,7 +213,7 @@
   </joint>
   <gazebo reference='flex_joint_y'>
     <springReference>0</springReference>
-    <springStiffness>2</springStiffness>
+    <springStiffness>10</springStiffness>
   </gazebo>
 
   <!-- main_body2 -->
@@ -308,5 +308,23 @@
   <xacro:propeller_module id = "7" x = "${rotor_x}" y = "${rotor_y}" z = "${rotor_z}" direction = "1" tilt = "${rotor_tilt}" par_link = "main_body2"/>
   <xacro:propeller_module id = "8" x = "${-rotor_x}" y = "${rotor_y}" z = "${rotor_z}"  direction = "-1" tilt = "${rotor_tilt}" par_link = "main_body2"/>
 
+  <transmission name="joint_y">
+    <type>transmission_interface/SimpleTransmission</type>
+    <actuator name="motor1">
+      <mechanicalReduction>1</mechanicalReduction>
+    </actuator>
+    <joint name="flex_joint_y">
+      <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+    </joint>
+  </transmission>
 
+  <transmission name="joint_p">
+    <type>transmission_interface/SimpleTransmission</type>
+    <actuator name="motor2">
+      <mechanicalReduction>1</mechanicalReduction>
+    </actuator>
+    <joint name="flex_joint_p">
+      <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+    </joint>
+  </transmission>
 </robot>
