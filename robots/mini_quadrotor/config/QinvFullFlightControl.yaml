@@ -3,7 +3,7 @@ aerial_robot_control_name: aerial_robot_control/fully_actuated_nobend_controller
 controller:
   control_method : 0
   xy:
-    p_gain: 5
+    p_gain: 10
     i_gain: 0.3
     d_gain: 1.5
     limit_sum: 3
@@ -41,12 +41,34 @@ controller:
     limit_i: 10
     limit_d: 10
   yaw:
-    p_gain: 10
+    p_gain: 15
     i_gain: 1
-    d_gain: 0.5
-    limit_sum: 6.0 # N for clamping thrust force
+    d_gain: 2
+    limit_sum: 20.0 # N for clamping thrust force
     limit_p: 4.0
-    limit_i: 4.0
+    limit_i: 12.0
     limit_d: 4.0
     limit_err_p: 0.4
     need_d_control: true
+
+  pitch_2:
+    p_gain: 15
+    i_gain: 3
+    d_gain: 5 # 5: good, 7: deverge in the takeoff phase
+    limit_sum: 10
+    limit_p: 10
+    limit_i: 10
+    limit_d: 10
+  yaw_2:
+    p_gain: 15
+    i_gain: 1
+    d_gain: 2
+    limit_sum: 20.0 # N for clamping thrust force
+    limit_p: 4.0
+    limit_i: 12.0
+    limit_d: 4.0
+    limit_err_p: 0.4
+    need_d_control: true
+  
+  pitch_pcs_gain: 1
+  yaw_pcs_gain: 1

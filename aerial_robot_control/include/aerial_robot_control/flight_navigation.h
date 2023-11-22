@@ -91,6 +91,7 @@ namespace aerial_robot_navigation
     inline void setTargetVelZ( float value){  target_vel_.setZ(value);}
     inline void setTargetAccZ( float value){  target_acc_.setZ(value);}
     inline void addTargetPosZ( float value){  target_pos_ += tf::Vector3(0, 0, value);}
+    inline void setYawControlFlag (bool value) { yaw_control_flag_ = value;}
 
     inline void setTeleopFlag(bool teleop_flag) { teleop_flag_ = teleop_flag; }
     inline bool getTeleopFlag() { return teleop_flag_; }

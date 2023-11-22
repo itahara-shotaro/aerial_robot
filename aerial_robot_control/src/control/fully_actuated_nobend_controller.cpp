@@ -34,6 +34,9 @@
  *********************************************************************/
 
 #include <aerial_robot_control/control/fully_actuated_nobend_controller.h>
+#include <tf_conversions/tf_eigen.h>
+#include <tf/transform_datatypes.h>
+#include <iostream>
 
 using namespace std;
 
@@ -69,6 +72,26 @@ namespace aerial_robot_control
     torque_allocation_matrix_inv_pub_ = nh_.advertise<spinal::TorqueAllocationMatrixInv>("torque_allocation_matrix_inv", 1);
     wrench_allocation_matrix_pub_ = nh_.advertise<aerial_robot_msgs::WrenchAllocationMatrix>("debug/wrench_allocation_matrix", 1);
     wrench_allocation_matrix_inv_pub_ = nh_.advertise<aerial_robot_msgs::WrenchAllocationMatrix>("debug/wrench_allocation_matrix_inv", 1);
+
+    pid_pitch_2 = boost::make_shared<PID>("pitch_2", pitch_2_p_gain, pitch_2_i_gain, pitch_2_d_gain, pitch_2_limit_sum, pitch_2_limit_p, pitch_2_limit_i, pitch_2_limit_d, pitch_2_limit_err_p, pitch_2_limit_err_i, pitch_2_limit_err_d);
+    pid_yaw_2 = boost::make_shared<PID>("yaw_2", yaw_2_p_gain, yaw_2_i_gain, yaw_2_d_gain, yaw_2_limit_sum, yaw_2_limit_p, yaw_2_limit_i, pitch_2_limit_d, pitch_2_limit_err_p, pitch_2_limit_err_i, pitch_2_limit_err_d);
+
+    twistSubscriber = nh.subscribe("/quadrotor2_twist", 1, &FullyActuatedNobendController::twistCallback, this);
+
+    rotors_origin_original = robot_model_->getRotorsOriginFromCog<Eigen::Vector3d>();
+    rotors_normal_original = robot_model_->getRotorsNormalFromCog<Eigen::Vector3d>();
+    // q_mat_original = robot_model_->calcWrenchMatrixOnCoG();
+    first = true; // getting the original q_mat here causes it to be zero, so not taking it here
+
+    TargetPitch1Subscriber = nh.subscribe("/target_pitch1", 1, &FullyActuatedNobendController::TargetPitch1Callback, this);
+    TargetYaw1Subscriber = nh.subscribe("/target_yaw1", 1, &FullyActuatedNobendController::TargetYaw1Callback, this);
+    TargetPitch2Subscriber = nh.subscribe("/target_pitch2", 1, &FullyActuatedNobendController::TargetPitch2Callback, this);
+    TargetYaw2Subscriber = nh.subscribe("/target_yaw2", 1, &FullyActuatedNobendController::TargetYaw2Callback, this);
+    
+    TargetPitch1 = 0;
+    TargetYaw1 = 0;
+    TargetPitch2 = 0;
+    TargetYaw2 = 0;
   }
 
   void FullyActuatedNobendController::reset()
@@ -76,11 +99,73 @@ namespace aerial_robot_control
     PoseLinearController::reset();
 
     setAttitudeGains();
+
+    first = true;
+  }
+
+  void FullyActuatedNobendController::twistCallback(const geometry_msgs::Twist::ConstPtr& msg){
+    boost::lock_guard<boost::mutex> lock(twistmutex);
+    latestTwist = *msg;
+  }
+
+  void FullyActuatedNobendController::TargetPitch1Callback(const std_msgs::Float64& msg){
+    boost::lock_guard<boost::mutex> lock(Pitch1mutex);
+    TargetPitch1 = (msg).data;
+    navigator_->setTargetPitch(TargetPitch1);
+  }
+
+  void FullyActuatedNobendController::TargetYaw1Callback(const std_msgs::Float64& msg){
+    boost::lock_guard<boost::mutex> lock(Yaw1mutex);
+    TargetYaw1 = (msg).data;
+    navigator_->setYawControlFlag(true);
+    navigator_->setTargetYaw(TargetPitch1);
+  }
+
+  void FullyActuatedNobendController::TargetPitch2Callback(const std_msgs::Float64& msg){
+    boost::lock_guard<boost::mutex> lock(Pitch2mutex);
+    TargetPitch2 = (msg).data;
+  }
+
+  void FullyActuatedNobendController::TargetYaw2Callback(const std_msgs::Float64& msg){
+    boost::lock_guard<boost::mutex> lock(Yaw2mutex);
+    TargetYaw2 = (msg).data;
   }
 
   void FullyActuatedNobendController::controlCore()
   {
     PoseLinearController::controlCore();
+    if(first){
+      q_mat_original = robot_model_->calcWrenchMatrixOnCoG();
+      first = false;
+    }
+
+    // -------------- prepare PID for quadrotor 2
+    double roll, pitch, yaw;
+    listener.lookupTransform("world", "quadrotor1/main_body2", ros::Time(0), transform);
+    tf::Vector3 translation = transform.getOrigin();
+    tf::Quaternion rotation = transform.getRotation();
+    tf::Matrix3x3 new_rot(rotation);
+    new_rot.getEulerYPR(yaw, pitch, roll);
+
+    double du_ry = du;
+    if(!start_rp_integration_) du_ry=0;
+
+    // get the angular velocity
+    
+    geometry_msgs::Twist tw;
+    {boost::lock_guard<boost::mutex> lock(twistmutex); tw=latestTwist;}
+
+    double TP1, TY1, TP2, TY2;
+    {boost::lock_guard<boost::mutex> lock(Pitch1mutex); TP1=TargetPitch1;}
+    {boost::lock_guard<boost::mutex> lock(Yaw1mutex); TY1=TargetYaw1;}
+    {boost::lock_guard<boost::mutex> lock(Pitch2mutex); TP2=TargetPitch2;}
+    {boost::lock_guard<boost::mutex> lock(Yaw2mutex); TY2=TargetYaw2;}
+
+    pid_yaw_2->update(TY2 - yaw, du_ry, -tw.angular.z);
+    pid_pitch_2->update(TP2 - pitch, du_ry, -tw.angular.y);
+    // std::cout<<TP2<<TY2<<std::endl;
+    // ROS_INFO_STREAM(pid_pitch_2->result());
+    // --------------- 
 
     tf::Matrix3x3 uav_rot_yaw = tf::Matrix3x3(tf::createQuaternionFromRPY(0.0, 0.0, rpy_.z()));
     tf::Matrix3x3 uav_rot_pitch_yaw = tf::Matrix3x3(tf::createQuaternionFromRPY(0.0, rpy_.y(), rpy_.z()));
@@ -97,13 +182,13 @@ namespace aerial_robot_control
     Eigen::Matrix3d inertia_inv = robot_model_->getInertia<Eigen::Matrix3d>().inverse();
     double mass_inv =  1 / robot_model_->getMass();
     double mass =  robot_model_->getMass();
-    Eigen::MatrixXd q_mat = robot_model_->calcWrenchMatrixOnCoG();
+    Eigen::MatrixXd q_mat = q_mat_original;
     q_mat_.topRows(3) =  mass_inv * q_mat.topRows(3) ;
     q_mat_.bottomRows(3) =  inertia_inv * q_mat.bottomRows(3);
 
     // Step0: Calculate the psuedo-CoG of each drone
 
-    std::vector<Eigen::Vector3d> rotors_origin = robot_model_->getRotorsOriginFromCog<Eigen::Vector3d>();
+    std::vector<Eigen::Vector3d> rotors_origin = rotors_origin_original;
 
     Eigen::Vector3d pCoG_1 = Eigen::Vector3d::Zero();
     Eigen::Vector3d pCoG_2 = Eigen::Vector3d::Zero();
@@ -113,7 +198,7 @@ namespace aerial_robot_control
     }
 
     //Step0.5: obtain the normal vectors of thrusts
-    std::vector<Eigen::Vector3d> rotors_normal = robot_model_->getRotorsNormalFromCog<Eigen::Vector3d>();
+    std::vector<Eigen::Vector3d> rotors_normal = rotors_normal_original;
 
     Eigen::VectorXd target_thrust_x_term;
     Eigen::VectorXd target_thrust_y_term;
@@ -138,8 +223,9 @@ namespace aerial_robot_control
           Q_row6(i) = (q_mat.row(4))(i);
           Q_row7(i+4) = (q_mat.row(4))(i+4);
         }
+        q_mat.topRows(3) = robot_model_->calcWrenchMatrixOnCoG().topRows(3);
         Q_new_test<<q_mat.row(0), q_mat.row(1), q_mat.row(2), q_mat.row(3), Q_row4.transpose(), Q_row5.transpose(), Q_row6.transpose(),Q_row7.transpose();
-
+    
         // Step2: calculate SR-inverse of the new Q
 
         double sr_inverse_sigma = 1;
@@ -152,26 +238,25 @@ namespace aerial_robot_control
         sr_inv.block(4,6,4,1) = Eigen::Vector4d::Zero(4);
         sr_inv.block(0,7,4,1) = Eigen::Vector4d::Zero(4);
         q_mat_inv_=sr_inv;
-        
+        //x y z r y1 y2 p1 p2
         //step3: calculate thrust accounting for softness & linear acc
 
         tf::Vector3 gravity_world(0,
                                   0,
                                   -9.8);
-        //gravity_world(3) = -9.8;
         tf::Vector3 gravity_cog = uav_rot.inverse() * gravity_world;
         Eigen::Vector3d gravity_CoG(gravity_cog.x(), gravity_cog.y(), gravity_cog.z() );
 
         Eigen::VectorXd thrust_constant = Eigen::VectorXd::Zero(8);
-        //thrust_constant << 0,0,0,0,0,(mass/2)*(pCoG_1.cross(gravity_CoG)).y(),(mass/2)*(pCoG_2.cross(gravity_CoG)).y();
+        thrust_constant << /*x*/0, /*y*/0, /*z*/0, /*r*/0, /*y1*/yaw_pcs_gain*(-TY1+TY2), /*y2*/yaw_pcs_gain*(TY2-TY1), /*p1*/0, /*p2*/0;
         
         target_thrust_x_term = q_mat_inv_.col(X) * target_acc_cog.x();
         target_thrust_y_term = q_mat_inv_.col(Y) * target_acc_cog.y();
         target_thrust_z_term = q_mat_inv_.col(Z) * target_acc_cog.z();
-        target_thrust_soft_term = -1*(q_mat_inv_*thrust_constant);
-
-        // ROS_INFO_STREAM(q_mat_inv_);
-        // ROS_INFO_STREAM(Q_new_test);
+        // target_thrust_soft_term = -1*(q_mat_inv_*thrust_constant);
+        target_thrust_soft_term = q_mat_inv_.col(5)*(pid_yaw_2->result()) + q_mat_inv_.col(7)*(pid_pitch_2->result()) + q_mat_inv_*thrust_constant;
+        // ROS_INFO_STREAM(target_thrust_soft_term);
+        // ROS_INFO_STREAM(thrust_constant);
       }
       else{ // 離陸前 or 離陸中
         Eigen::MatrixXd Q_new_test(8,8);
@@ -330,7 +415,7 @@ namespace aerial_robot_control
         //Eigen::MatrixXd torque_allocation_matrix_inv = q_mat_inv_.rightCols(3); //ここでSpinalに送るところを指定
         //Eigen::MatrixXd torque_allocation_matrix_inv = q_mat_inv_.middleCols(3,3);
         Eigen::MatrixXd torque_allocation_matrix_inv(8,3);
-        torque_allocation_matrix_inv<<q_mat_inv_.col(3),(q_mat_inv_.col(6)+q_mat_inv_.col(7)),(q_mat_inv_.col(4)+q_mat_inv_.col(5));
+        torque_allocation_matrix_inv<<q_mat_inv_.col(3),(q_mat_inv_.col(6)),(q_mat_inv_.col(4));
         //torque_allocation_matrix_inv<<q_mat_inv_.col(3),(q_mat_inv_.col(4)),q_mat_inv_.col(5);
         //ROS_INFO_STREAM(torque_allocation_matrix_inv);
         if (torque_allocation_matrix_inv.cwiseAbs().maxCoeff() > INT16_MAX * 0.001f)
@@ -351,6 +436,33 @@ namespace aerial_robot_control
     getParam<double>(control_nh, "torque_allocation_matrix_inv_pub_interval", torque_allocation_matrix_inv_pub_interval_, 0.05);
     getParam<double>(control_nh, "wrench_allocation_matrix_pub_interval", wrench_allocation_matrix_pub_interval_, 0.1);
     getParam<int>(control_nh, "control_method", control_method, 0);
+
+    getParam<double>(control_nh, "pitch_2/limit_sum", pitch_2_limit_sum, 1.0e6);
+    getParam<double>(control_nh, "pitch_2/limit_p", pitch_2_limit_p, 1.0e6);
+    getParam<double>(control_nh, "pitch_2/limit_i", pitch_2_limit_i, 1.0e6);
+    getParam<double>(control_nh, "pitch_2/limit_d", pitch_2_limit_d, 1.0e6);
+    getParam<double>(control_nh, "pitch_2/limit_err_p", pitch_2_limit_err_p, 1.0e6);
+    getParam<double>(control_nh, "pitch_2/limit_err_i", pitch_2_limit_err_i, 1.0e6);
+    getParam<double>(control_nh, "pitch_2/limit_err_d", pitch_2_limit_err_d, 1.0e6);
+
+    getParam<double>(control_nh, "pitch_2/p_gain", pitch_2_p_gain, 0.0);
+    getParam<double>(control_nh, "pitch_2/i_gain", pitch_2_i_gain, 0.0);
+    getParam<double>(control_nh, "pitch_2/d_gain", pitch_2_d_gain, 0.0);
+
+    getParam<double>(control_nh, "yaw_2/limit_sum", yaw_2_limit_sum, 1.0e6);
+    getParam<double>(control_nh, "yaw_2/limit_p", yaw_2_limit_p, 1.0e6);
+    getParam<double>(control_nh, "yaw_2/limit_i", yaw_2_limit_i, 1.0e6);
+    getParam<double>(control_nh, "yaw_2/limit_d", yaw_2_limit_d, 1.0e6);
+    getParam<double>(control_nh, "yaw_2/limit_err_p", yaw_2_limit_err_p, 1.0e6);
+    getParam<double>(control_nh, "yaw_2/limit_err_i", yaw_2_limit_err_i, 1.0e6);
+    getParam<double>(control_nh, "yaw_2/limit_err_d", yaw_2_limit_err_d, 1.0e6);
+
+    getParam<double>(control_nh, "yaw_2/p_gain", yaw_2_p_gain, 0.0);
+    getParam<double>(control_nh, "yaw_2/i_gain", yaw_2_i_gain, 0.0);
+    getParam<double>(control_nh, "yaw_2/d_gain", yaw_2_d_gain, 0.0);
+
+    getParam<double>(control_nh, "pitch_pcs_gain", pitch_pcs_gain, 0.0);
+    getParam<double>(control_nh, "yaw_pcs_gain", yaw_pcs_gain, 0.0);
   }
 
   void FullyActuatedNobendController::setAttitudeGains()

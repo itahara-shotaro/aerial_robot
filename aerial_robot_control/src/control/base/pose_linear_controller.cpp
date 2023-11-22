@@ -216,7 +216,7 @@ namespace aerial_robot_control
     target_omega_ = navigator_->getTargetOmega();
 
     // time diff
-    double du = ros::Time::now().toSec() - control_timestamp_;
+    du = ros::Time::now().toSec() - control_timestamp_;
 
     // x & y
     switch(navigator_->getXyControlMode())

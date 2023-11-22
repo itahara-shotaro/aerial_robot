@@ -39,6 +39,10 @@
 #include <spinal/FourAxisCommand.h>
 #include <spinal/RollPitchYawTerms.h>
 #include <spinal/TorqueAllocationMatrixInv.h>
+#include <tf/transform_listener.h>
+#include <geometry_msgs/Twist.h>
+#include <std_msgs/Float64.h>
+#include <aerial_robot_msgs/FlightNav.h>
 
 using boost::algorithm::clamp;
 
@@ -78,9 +82,46 @@ namespace aerial_robot_control
     void sendFourAxisCommand();
     void sendTorqueAllocationMatrixInv();
 
-    double SRinv_cost; //cost function
-    double constraint_1;// constraint function for robot 1
-    double constraint_2;// constraint function for robot 2
+    tf::TransformListener listener; // listening to transform of robot2
+    tf::StampedTransform transform; // transform of robot2
+    
+    // PID for frame 2
+    boost::shared_ptr<PID> pid_pitch_2;
+    boost::shared_ptr<PID> pid_yaw_2;
+
+    double pitch_2_p_gain, pitch_2_i_gain, pitch_2_d_gain, pitch_2_limit_sum, pitch_2_limit_p, pitch_2_limit_i, pitch_2_limit_d, pitch_2_limit_err_p, pitch_2_limit_err_i, pitch_2_limit_err_d;
+    double yaw_2_p_gain, yaw_2_i_gain, yaw_2_d_gain, yaw_2_limit_sum, yaw_2_limit_p, yaw_2_limit_i, yaw_2_limit_d, yaw_2_limit_err_p, yaw_2_limit_err_i, yaw_2_limit_err_d;
+
+    // getting twist of frame 2 from the python script
+    ros::Subscriber twistSubscriber;
+    void twistCallback(const geometry_msgs::Twist::ConstPtr& msg);
+    boost::mutex twistmutex;
+    geometry_msgs::Twist latestTwist;
+
+    // retaining the original geometrical configuration
+    std::vector<Eigen::Vector3d> rotors_origin_original;
+    std::vector<Eigen::Vector3d> rotors_normal_original;
+    Eigen::MatrixXd q_mat_original;
+    bool first;
+
+    // receiving the target angle
+    ros::Subscriber TargetPitch1Subscriber;
+    ros::Subscriber TargetYaw1Subscriber;
+    ros::Subscriber TargetPitch2Subscriber;
+    ros::Subscriber TargetYaw2Subscriber;
+
+    double TargetPitch1, TargetYaw1, TargetPitch2, TargetYaw2;
+    boost::mutex Pitch1mutex, Yaw1mutex, Pitch2mutex, Yaw2mutex;
+
+    void TargetPitch1Callback(const std_msgs::Float64& msg);
+    void TargetYaw1Callback(const std_msgs::Float64& msg);
+    void TargetPitch2Callback(const std_msgs::Float64& msg);
+    void TargetYaw2Callback(const std_msgs::Float64& msg);
+
+    // inner force compensation gain
+    double pitch_pcs_gain, yaw_pcs_gain;
+
+    //void BaseNavigator::naviCallback(const aerial_robot_msgs::FlightNavConstPtr & msg)
 
   protected:
     ros::Publisher rpy_gain_pub_; //for spinal

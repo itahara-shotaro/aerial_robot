@@ -106,5 +106,6 @@
     <arg name="spawn_yaw" value="$(arg spawn_yaw)" />
   </include>
   <node name="gzterminate" pkg="aerial_robot_base" type="gazebo_shutdown.py" />
+  <node name="twist_publisher" pkg="mini_quadrotor" type="angular_vel_publisher.py" />
 
 </launch>
