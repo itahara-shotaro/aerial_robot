@@ -66,9 +66,302 @@ namespace aerial_robot_control
 
     rpy_gain_pub_ = nh_.advertise<spinal::RollPitchYawTerms>("rpy/gain", 1);
     flight_cmd_pub_ = nh_.advertise<spinal::FourAxisCommand>("four_axes/command", 1);
+    new_CoG_pub_ = nh_.advertise<geometry_msgs::Point>("newCoG", 1);
+    robot_id_pub_ = nh_.advertise<std_msgs::UInt32>("robot_id", 1);
     torque_allocation_matrix_inv_pub_ = nh_.advertise<spinal::TorqueAllocationMatrixInv>("torque_allocation_matrix_inv", 1);
     wrench_allocation_matrix_pub_ = nh_.advertise<aerial_robot_msgs::WrenchAllocationMatrix>("debug/wrench_allocation_matrix", 1);
     wrench_allocation_matrix_inv_pub_ = nh_.advertise<aerial_robot_msgs::WrenchAllocationMatrix>("debug/wrench_allocation_matrix_inv", 1);
+
+    // obtaining the original geometric configuration
+    rotors_origin_original = robot_model_->getRotorsOriginFromCog<Eigen::Vector3d>();
+    rotors_normal_original = robot_model_->getRotorsNormalFromCog<Eigen::Vector3d>();
+    first = true; //obtaining the original WrenchMatrixOnCoG here causes it to be zero
+
+    // new CoG location related
+    Pos1Subscriber = nh_.subscribe("/assemble_quadrotors1/mocap/pose", 1, &FullyActuatedNobendController::pos1Callback, this);
+    Pos2Subscriber = nh_.subscribe("/assemble_quadrotors2/mocap/pose", 1, &FullyActuatedNobendController::pos2Callback, this);
+
+    // extracting the robot_id from robot_ns
+    std::smatch match;
+    robot_ns = nh_.getNamespace();
+
+    std::regex_search(robot_ns, match, std::regex("\\d"));
+    robot_id = match.empty() ? 1 : std::stoi(match[0]);
+
+    std_msgs::UInt32 msg;
+    msg.data=robot_id;
+    robot_id_pub_.publish(msg);
+
+    q_mat_new = robot_model_->calcWrenchMatrixOnCoG();
+  }
+
+  void FullyActuatedNobendController::CalculateCoG(){
+    {
+      boost::lock_guard<boost::mutex> lock(pos1_mutex);
+      {
+        boost::lock_guard<boost::mutex> lock(pos2_mutex);
+          {
+            boost::lock_guard<boost::mutex> lock(cog_mutex);
+            geometry_msgs::Point cog;
+            cog.x = (Pos1.position.x+Pos2.position.x)/2;
+            cog.y = (Pos1.position.y+Pos2.position.y)/2;
+            cog.z = (Pos1.position.z+Pos2.position.z)/2;
+            CoG = cog;
+            new_CoG_pub_.publish(cog);
+          }
+      }
+    }
+    return;
+  }
+
+  void FullyActuatedNobendController::CalculateRot(){
+    {
+      boost::lock_guard<boost::mutex> lock(att1_mutex);
+      {
+        boost::lock_guard<boost::mutex> lock(att2_mutex);
+        {
+          Rot1 = Att1.toRotationMatrix();
+          Rot2 = Att2.toRotationMatrix();
+        }
+      }
+    }
+    {
+      boost::lock_guard<boost::mutex> lock(rot_rel_mutex);
+      if(robot_id==1){ //calculate {}^1 R_{2} = ({}^0 R_{1})^T {}^0 R_{2}
+        Rot_rel = Rot1.transpose() * Rot2;
+      }
+
+      else{ // calculate {}^2 R_{1}
+        Rot_rel = Rot2.transpose() * Rot1;
+      }
+      {
+        boost::lock_guard<boost::mutex> lock(q_new_mutex);
+        updateWrenchMatrixOnCoG();
+      }
+    }
+    return;
+  }
+
+  void FullyActuatedNobendController::updateWrenchMatrixOnCoG(){
+
+    //linear
+    if(robot_id == 1){ // xyz part corresponding to quadrotor1 remains the same
+      q_mat_new.block(0,0,3,4) = q_mat_original.block(0,0,3,4);
+      q_mat_new.block(0,4,3,4) = Rot_rel * q_mat_original.block(0,4,3,4);
+    }
+
+    else{
+      q_mat_new.block(0,4,3,4) = q_mat_original.block(0,4,3,4);
+      q_mat_new.block(0,0,3,4) = Rot_rel * q_mat_original.block(0,0,3,4);
+    }
+
+    //roll
+    q_mat_new.row(3)=q_mat_original.row(3);
+
+    //pitch, yaw->does not matter
+    q_mat_new.row(4)=q_mat_original.row(4);
+    q_mat_new.row(5)=q_mat_original.row(5);
+    q_mat_new.row(6)=q_mat_original.row(6);
+    q_mat_new.row(7)=q_mat_original.row(7);
+  }
+
+  void FullyActuatedNobendController::pos1Callback(const geometry_msgs::PoseStamped& msg){
+    {
+      boost::lock_guard<boost::mutex> lock(pos1_mutex);
+      {
+        boost::lock_guard<boost::mutex> lock(att1_mutex);
+        Pos1 = msg.pose;
+        geometry_msgs::Quaternion msg_quat = msg.pose.orientation;
+        Att1 = Eigen::Quaterniond(msg_quat.w, msg_quat.x, msg_quat.y, msg_quat.z).normalized();
+      }
+    }
+    CalculateCoG();
+    CalculateRot();
+    return;
+  }
+
+  void FullyActuatedNobendController::pos2Callback(const geometry_msgs::PoseStamped& msg){
+    {
+      boost::lock_guard<boost::mutex> lock(pos2_mutex);
+      {
+        boost::lock_guard<boost::mutex> lock(att2_mutex);
+        Pos2 = msg.pose;
+        geometry_msgs::Quaternion msg_quat = msg.pose.orientation;
+        Att2 = Eigen::Quaterniond(msg_quat.w, msg_quat.x, msg_quat.y, msg_quat.z).normalized();
+      }
+    }
+    CalculateCoG();
+    CalculateRot();
+    return;
+  }
+
+  void FullyActuatedNobendController::PIDupdate(){
+    vel_ = estimator_->getVel(Frame::COG, estimate_mode_);
+    target_pos_ = navigator_->getTargetPos();
+    target_vel_ = navigator_->getTargetVel();
+    target_acc_ = navigator_->getTargetAcc();
+    geometry_msgs::Point cog;
+    {boost::lock_guard<boost::mutex> lock(cog_mutex); cog = CoG; }
+
+    rpy_ = estimator_->getEuler(Frame::COG, estimate_mode_);
+    omega_ = estimator_->getAngularVel(Frame::COG, estimate_mode_);
+    target_rpy_ = navigator_->getTargetRPY();
+    target_omega_ = navigator_->getTargetOmega();
+
+    // time diff
+    double du = ros::Time::now().toSec() - control_timestamp_;
+
+    // x & y
+    switch(navigator_->getXyControlMode())
+      {
+      case aerial_robot_navigation::POS_CONTROL_MODE:
+        pid_controllers_.at(X).update(target_pos_.x() - cog.x, du, target_vel_.x() - vel_.x(), target_acc_.x());
+        pid_controllers_.at(Y).update(target_pos_.y() - cog.y, du, target_vel_.y() - vel_.y(), target_acc_.y());
+        break;
+      case aerial_robot_navigation::VEL_CONTROL_MODE:
+        pid_controllers_.at(X).update(0, du, target_vel_.x() - vel_.x(), target_acc_.x());
+        pid_controllers_.at(Y).update(0, du, target_vel_.y() - vel_.y(), target_acc_.y());
+        break;
+      case aerial_robot_navigation::ACC_CONTROL_MODE:
+        pid_controllers_.at(X).update(0, du, 0, target_acc_.x());
+        pid_controllers_.at(Y).update(0, du, 0, target_acc_.y());
+        break;
+      default:
+        break;
+      }
+
+    if(navigator_->getForceLandingFlag())
+      {
+        pid_controllers_.at(X).reset();
+        pid_controllers_.at(Y).reset();
+      }
+
+    // z
+    double err_z = target_pos_.z() - cog.z;
+    double err_v_z = target_vel_.z() - vel_.z();
+    double du_z = du;
+    double z_p_limit = pid_controllers_.at(Z).getLimitP();
+    bool final_landing_phase = false;
+    if(navigator_->getNaviState() == aerial_robot_navigation::LAND_STATE)
+      {
+        if(-err_z > safe_landing_height_)
+          {
+            err_z = landing_err_z_;  // too high, slowly descend
+            if(vel_.z() < landing_err_z_) du_z = 0;  // freeze i term when descending
+          }
+        else
+          {
+            pid_controllers_.at(Z).setLimitP(0); // no p control in final safe landing phase
+            final_landing_phase = true;
+          }
+      }
+
+    if(navigator_->getForceLandingFlag())
+      {
+        pid_controllers_.at(Z).setLimitP(0); // no p control in force landing phase
+        err_z = force_landing_descending_rate_;
+        err_v_z = 0;
+        target_acc_.setZ(0);
+      }
+
+    pid_controllers_.at(Z).update(err_z, du_z, err_v_z, target_acc_.z());
+
+    if(pid_controllers_.at(Z).getErrI() < 0) pid_controllers_.at(Z).setErrI(0);
+
+    if(final_landing_phase || navigator_->getForceLandingFlag())
+      {
+        pid_controllers_.at(Z).setLimitP(z_p_limit); // revert z p limit
+        pid_controllers_.at(Z).setErrP(0); // for derived controller which use err_p in feedback control (e.g., LQI)
+      }
+
+    // roll pitch
+    double du_rp = du;
+    if(!start_rp_integration_)
+      {
+        if(cog.z - estimator_->getLandingHeight() > start_rp_integration_height_)
+          {
+            start_rp_integration_ = true;
+            spinal::FlightConfigCmd flight_config_cmd;
+            flight_config_cmd.cmd = spinal::FlightConfigCmd::INTEGRATION_CONTROL_ON_CMD;
+            navigator_->getFlightConfigPublisher().publish(flight_config_cmd);
+            ROS_WARN_ONCE("start roll/pitch I control");
+          }
+        du_rp = 0;
+      }
+    pid_controllers_.at(ROLL).update(target_rpy_.x() - rpy_.x(), du_rp, target_omega_.x() - omega_.x());
+    pid_controllers_.at(PITCH).update(target_rpy_.y() - rpy_.y(), du_rp, target_omega_.y() - omega_.y());
+
+    // yaw
+    double err_yaw = angles::shortest_angular_distance(rpy_.z(), target_rpy_.z());
+    double err_omega_z = target_omega_.z() - omega_.z();
+    if(!need_yaw_d_control_)
+      {
+        err_omega_z = target_omega_.z(); // part of the control in spinal
+      }
+    pid_controllers_.at(YAW).update(err_yaw, du, err_omega_z);
+
+    // update
+    control_timestamp_ = ros::Time::now().toSec();
+
+    /* ros pub */
+    pid_msg_.header.stamp.fromSec(estimator_->getImuLatestTimeStamp());
+    pid_msg_.x.total.at(0) = pid_controllers_.at(X).result();
+    pid_msg_.x.p_term.at(0) = pid_controllers_.at(X).getPTerm();
+    pid_msg_.x.i_term.at(0) = pid_controllers_.at(X).getITerm();
+    pid_msg_.x.d_term.at(0) = pid_controllers_.at(X).getDTerm();
+    pid_msg_.x.target_p = target_pos_.x();
+    pid_msg_.x.err_p = target_pos_.x() - cog.x;
+    pid_msg_.x.target_d = target_vel_.x();
+    pid_msg_.x.err_d = target_vel_.x() - vel_.x();
+
+    pid_msg_.y.total.at(0) = pid_controllers_.at(Y).result();
+    pid_msg_.y.p_term.at(0) = pid_controllers_.at(Y).getPTerm();
+    pid_msg_.y.i_term.at(0) = pid_controllers_.at(Y).getITerm();
+    pid_msg_.y.d_term.at(0) = pid_controllers_.at(Y).getDTerm();
+    pid_msg_.y.target_p = target_pos_.y();
+    pid_msg_.y.err_p = target_pos_.y() - cog.x;
+    pid_msg_.y.target_d = target_vel_.y();
+    pid_msg_.y.err_d = target_vel_.y() - vel_.y();
+
+    pid_msg_.z.total.at(0) = pid_controllers_.at(Z).result();
+    pid_msg_.z.p_term.at(0) = pid_controllers_.at(Z).getPTerm();
+    pid_msg_.z.i_term.at(0) = pid_controllers_.at(Z).getITerm();
+    pid_msg_.z.d_term.at(0) = pid_controllers_.at(Z).getDTerm();
+    pid_msg_.z.target_p = target_pos_.z();
+    pid_msg_.z.err_p = target_pos_.z() - cog.z;
+    pid_msg_.z.target_d = target_vel_.z();
+    pid_msg_.z.err_d = target_vel_.z() - vel_.z();
+
+    pid_msg_.roll.total.at(0) = pid_controllers_.at(ROLL).result();
+    pid_msg_.roll.p_term.at(0) = pid_controllers_.at(ROLL).getPTerm();
+    pid_msg_.roll.i_term.at(0) = pid_controllers_.at(ROLL).getITerm();
+    pid_msg_.roll.d_term.at(0) = pid_controllers_.at(ROLL).getDTerm();
+    pid_msg_.roll.target_p = target_rpy_.x();
+    pid_msg_.roll.err_p = target_rpy_.x() - rpy_.x();
+    pid_msg_.roll.target_d = target_omega_.x();
+    pid_msg_.roll.err_d = target_omega_.x() - omega_.x();
+
+    pid_msg_.pitch.total.at(0) = pid_controllers_.at(PITCH).result();
+    pid_msg_.pitch.p_term.at(0) = pid_controllers_.at(PITCH).getPTerm();
+    pid_msg_.pitch.i_term.at(0) = pid_controllers_.at(PITCH).getITerm();
+    pid_msg_.pitch.d_term.at(0) = pid_controllers_.at(PITCH).getDTerm();
+    pid_msg_.pitch.target_p = target_rpy_.y();
+    pid_msg_.pitch.err_p = target_rpy_.y() - rpy_.y();
+    pid_msg_.pitch.target_d = target_omega_.y();
+    pid_msg_.pitch.err_d = target_omega_.y() - omega_.y();
+
+    pid_msg_.yaw.total.at(0) = pid_controllers_.at(YAW).result();
+    pid_msg_.yaw.p_term.at(0) = pid_controllers_.at(YAW).getPTerm();
+    pid_msg_.yaw.i_term.at(0) = pid_controllers_.at(YAW).getITerm();
+    pid_msg_.yaw.d_term.at(0) = pid_controllers_.at(YAW).getDTerm();
+    pid_msg_.yaw.target_p = target_rpy_.z();
+    pid_msg_.yaw.err_p = err_yaw;
+    pid_msg_.yaw.target_d = target_omega_.z();
+    pid_msg_.yaw.err_d = target_omega_.z() - omega_.z();
+
+    //du pub
+    du_msg_.data = du;
+    du_pub_.publish(du_msg_);
   }
 
   void FullyActuatedNobendController::reset()
@@ -80,7 +373,11 @@ namespace aerial_robot_control
 
   void FullyActuatedNobendController::controlCore()
   {
-    PoseLinearController::controlCore();
+    PIDupdate();
+    if(first){
+      q_mat_original = robot_model_->calcWrenchMatrixOnCoG();
+      first = false;
+    }
 
     tf::Matrix3x3 uav_rot_yaw = tf::Matrix3x3(tf::createQuaternionFromRPY(0.0, 0.0, rpy_.z()));
     tf::Matrix3x3 uav_rot_pitch_yaw = tf::Matrix3x3(tf::createQuaternionFromRPY(0.0, rpy_.y(), rpy_.z()));
@@ -89,18 +386,16 @@ namespace aerial_robot_control
     tf::Vector3 target_acc_w(pid_controllers_.at(X).result(),
                              pid_controllers_.at(Y).result(),
                              pid_controllers_.at(Z).result());
-    tf::Vector3 target_acc_cog = uav_rot_yaw.inverse() * target_acc_w;
+    tf::Vector3 target_acc_cog = uav_rot.inverse() * target_acc_w;
     //tf::Vector3 target_acc_cog = uav_rot_yaw.inverse() * target_acc_w; 
     // should use uav_rot_yaw in place for uav_rot for real flight
 
-    //wrench allocation matrix
     Eigen::Matrix3d inertia_inv = robot_model_->getInertia<Eigen::Matrix3d>().inverse();
     double mass_inv =  1 / robot_model_->getMass();
     double mass =  robot_model_->getMass();
     Eigen::MatrixXd q_mat = robot_model_->calcWrenchMatrixOnCoG();
     q_mat_.topRows(3) =  mass_inv * q_mat.topRows(3) ;
     q_mat_.bottomRows(3) =  inertia_inv * q_mat.bottomRows(3);
-
     // Step0: Calculate the psuedo-CoG of each drone
 
     std::vector<Eigen::Vector3d> rotors_origin = robot_model_->getRotorsOriginFromCog<Eigen::Vector3d>();
@@ -130,14 +425,18 @@ namespace aerial_robot_control
       for(int i=0;i<4;i++){
         
         // yaw
-        Q_row4(i) = (q_mat.row(5))(i);
-        Q_row5(i+4) = (q_mat.row(5))(i+4);
+        Q_row4(i) = (q_mat_original.row(5))(i);
+        Q_row5(i+4) = (q_mat_original.row(5))(i+4);
 
         //pitch
-        Q_row6(i) = (q_mat.row(4))(i);
-        Q_row7(i+4) = (q_mat.row(4))(i+4);
+        Q_row6(i) = (q_mat_original.row(4))(i);
+        Q_row7(i+4) = (q_mat_original.row(4))(i+4);
       }
-      Q_new_test<<q_mat.row(0), q_mat.row(1), q_mat.row(2), q_mat.row(3), Q_row4.transpose(), Q_row5.transpose(), Q_row6.transpose(),Q_row7.transpose();
+
+      {
+        boost::lock_guard<boost::mutex> lock(q_new_mutex);
+        Q_new_test<<q_mat_new.row(0), q_mat_new.row(1), q_mat_new.row(2), q_mat_new.row(3), Q_row4.transpose(), Q_row5.transpose(), Q_row6.transpose(),Q_row7.transpose();
+      }
 
       // Step2: calculate SR-inverse of the new Q
 
@@ -165,11 +464,12 @@ namespace aerial_robot_control
 
       Eigen::VectorXd thrust_constant = Eigen::VectorXd::Zero(8);
       // thrust_constant << 0,0,0,0,0,(mass/2)*(pCoG_1.cross(gravity_CoG)).y(),(mass/2)*(pCoG_2.cross(gravity_CoG)).y();
+      thrust_constant << /*x*/0, /*y*/0, /*z*/0, /*r*/0, /*y1*/0, /*y2*/0, /*p1*/0, /*p2*/0; // PCS gen. force feed forward
       
       target_thrust_x_term = q_mat_inv_.col(X) * target_acc_cog.x();
       target_thrust_y_term = q_mat_inv_.col(Y) * target_acc_cog.y();
       target_thrust_z_term = q_mat_inv_.col(Z) * target_acc_cog.z();
-      target_thrust_soft_term = -1*(q_mat_inv_*thrust_constant);
+      target_thrust_soft_term = q_mat_inv_*thrust_constant;
       // ROS_INFO_STREAM(target_thrust_soft_term);
     }
 

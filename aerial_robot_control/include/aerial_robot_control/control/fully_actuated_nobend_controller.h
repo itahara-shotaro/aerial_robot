@@ -39,6 +39,13 @@
 #include <spinal/FourAxisCommand.h>
 #include <spinal/RollPitchYawTerms.h>
 #include <spinal/TorqueAllocationMatrixInv.h>
+#include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/Pose.h>
+#include <geometry_msgs/Point.h>
+#include <geometry_msgs/Quaternion.h>
+#include <string>
+#include <regex>
+#include <std_msgs/UInt32.h>
 
 using boost::algorithm::clamp;
 
@@ -78,9 +85,36 @@ namespace aerial_robot_control
     void sendFourAxisCommand();
     void sendTorqueAllocationMatrixInv();
 
-    double SRinv_cost; //cost function
-    double constraint_1;// constraint function for robot 1
-    double constraint_2;// constraint function for robot 2
+    // saving the original orientation of propellers
+    std::vector<Eigen::Vector3d> rotors_origin_original;
+    std::vector<Eigen::Vector3d> rotors_normal_original;
+    Eigen::MatrixXd q_mat_original;
+    bool first;
+
+    // listeners and callback functions for updating CoG location
+    ros::Subscriber Pos1Subscriber, Pos2Subscriber;
+    geometry_msgs::Pose Pos1, Pos2;
+    geometry_msgs::Point CoG;
+    boost::mutex pos1_mutex, pos2_mutex, cog_mutex;
+    inline void CalculateCoG();
+    void pos1Callback(const geometry_msgs::PoseStamped& msg), pos2Callback(const geometry_msgs::PoseStamped& msg);
+
+    // Position PID for new CoG
+    boost::shared_ptr<PID> pid_x, pid_y, pid_z;
+    void PIDupdate();
+    ros::Publisher new_CoG_pub_;
+
+    // Attitude of the two frames & updating q_mat
+    Eigen::Quaterniond Att1, Att2;
+    boost::mutex att1_mutex, att2_mutex, rot_rel_mutex, q_new_mutex;
+    Eigen::Matrix3d Rot1, Rot2, Rot_rel; // Rot_rel: frame {1 or 2}->{2 or 1}
+    inline void CalculateRot();
+    void updateWrenchMatrixOnCoG();
+    std::string robot_ns;
+    int robot_id;
+    Eigen::MatrixXd q_mat_new;
+    ros::Publisher robot_id_pub_;
+    
 
   protected:
     ros::Publisher rpy_gain_pub_; //for spinal
