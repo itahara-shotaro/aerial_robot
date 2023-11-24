@@ -440,7 +440,7 @@ namespace aerial_robot_control
 
       // Step2: calculate SR-inverse of the new Q
 
-      double sr_inverse_sigma = 1;
+      double sr_inverse_sigma = 10;
       Eigen::MatrixXd q = Q_new_test;
       Eigen::MatrixXd q_q_t = q * q.transpose();
       Eigen::MatrixXd sr_inv = q.transpose() * (q_q_t + sr_inverse_sigma* Eigen::MatrixXd::Identity(q_q_t.cols(), q_q_t.rows())).inverse();
@@ -450,7 +450,7 @@ namespace aerial_robot_control
       sr_inv.block(0,5,4,1) = Eigen::Vector4d::Zero(4);
       sr_inv.block(4,6,4,1) = Eigen::Vector4d::Zero(4);
       sr_inv.block(0,7,4,1) = Eigen::Vector4d::Zero(4);
-      q_mat_inv_=sr_inv;
+      q_mat_inv_ = 10*sr_inv;
       // ROS_INFO_STREAM(testaaaa);
       
       //step3: calculate thrust accounting for softness & linear acc
