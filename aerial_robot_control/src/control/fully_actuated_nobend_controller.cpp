@@ -75,6 +75,7 @@ namespace aerial_robot_control
     // obtaining the original geometric configuration
     rotors_origin_original = robot_model_->getRotorsOriginFromCog<Eigen::Vector3d>();
     rotors_normal_original = robot_model_->getRotorsNormalFromCog<Eigen::Vector3d>();
+    q_mat_original = robot_model_->calcWrenchMatrixOnCoG();
     first = true; //obtaining the original WrenchMatrixOnCoG here causes it to be zero
 
     // new CoG location related
@@ -136,35 +137,36 @@ namespace aerial_robot_control
       }
       {
         boost::lock_guard<boost::mutex> lock(q_new_mutex);
-        updateWrenchMatrixOnCoG();
       }
     }
     return;
   }
 
   void FullyActuatedNobendController::updateWrenchMatrixOnCoG(){
+    boost::lock_guard<boost::mutex> lock(rot_rel_mutex);
+    {
+      boost::lock_guard<boost::mutex> lock(q_new_mutex);
+      //linear
+      if(robot_id == 1){ // xyz part corresponding to quadrotor1 remains the same
+        q_mat_new.block(0,0,3,4) = q_mat_original.block(0,0,3,4);
+        q_mat_new.block(0,4,3,4) = Rot_rel * q_mat_original.block(0,4,3,4);
+      }
 
-    //linear
-    if(robot_id == 1){ // xyz part corresponding to quadrotor1 remains the same
-      q_mat_new.block(0,0,3,4) = q_mat_original.block(0,0,3,4);
-      q_mat_new.block(0,4,3,4) = Rot_rel * q_mat_original.block(0,4,3,4);
+      else{
+        q_mat_new.block(0,4,3,4) = q_mat_original.block(0,4,3,4);
+        q_mat_new.block(0,0,3,4) = Rot_rel * q_mat_original.block(0,0,3,4);
+      }
+
+      //roll
+      q_mat_new.row(3)=q_mat_original.row(3);
+
+      //pitch, yaw->does not matter
+      q_mat_new.row(4)=q_mat_original.row(4);
+      q_mat_new.row(5)=q_mat_original.row(5);
+      q_mat_new.row(6)=q_mat_original.row(6);
+      q_mat_new.row(7)=q_mat_original.row(7);
     }
-
-    else{
-      q_mat_new.block(0,4,3,4) = q_mat_original.block(0,4,3,4);
-      q_mat_new.block(0,0,3,4) = Rot_rel * q_mat_original.block(0,0,3,4);
-    }
-
-    //roll
-    q_mat_new.row(3)=q_mat_original.row(3);
-
-    //pitch, yaw->does not matter
-    q_mat_new.row(4)=q_mat_original.row(4);
-    q_mat_new.row(5)=q_mat_original.row(5);
-    q_mat_new.row(6)=q_mat_original.row(6);
-    q_mat_new.row(7)=q_mat_original.row(7);
   }
-
   void FullyActuatedNobendController::pos1Callback(const geometry_msgs::PoseStamped& msg){
     {
       boost::lock_guard<boost::mutex> lock(pos1_mutex);
@@ -177,8 +179,10 @@ namespace aerial_robot_control
     }
     CalculateCoG();
     CalculateRot();
+    updateWrenchMatrixOnCoG();
     return;
   }
+  
 
   void FullyActuatedNobendController::pos2Callback(const geometry_msgs::PoseStamped& msg){
     {
@@ -190,8 +194,6 @@ namespace aerial_robot_control
         Att2 = Eigen::Quaterniond(msg_quat.w, msg_quat.x, msg_quat.y, msg_quat.z).normalized();
       }
     }
-    CalculateCoG();
-    CalculateRot();
     return;
   }
 
