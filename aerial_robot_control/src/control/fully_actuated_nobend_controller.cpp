@@ -75,77 +75,64 @@ namespace aerial_robot_control
     // obtaining the original geometric configuration
     rotors_origin_original = robot_model_->getRotorsOriginFromCog<Eigen::Vector3d>();
     rotors_normal_original = robot_model_->getRotorsNormalFromCog<Eigen::Vector3d>();
-    q_mat_original = robot_model_->calcWrenchMatrixOnCoG();
+    q_mat_original = Eigen::Matrix<double, 8, 8>::Zero();
     first = true; //obtaining the original WrenchMatrixOnCoG here causes it to be zero
+    Att1 = Eigen::Quaterniond(1,0,0,0);
+    Att2 = Eigen::Quaterniond(1,0,0,0);
+    q_mat_new = Eigen::Matrix<double, 8, 8>::Zero();
 
     // new CoG location related
+    CoG.x=0;
+    CoG.y=0;
+    CoG.z=0;
     Pos1Subscriber = nh_.subscribe("/assemble_quadrotors1/mocap/pose", 1, &FullyActuatedNobendController::pos1Callback, this);
     Pos2Subscriber = nh_.subscribe("/assemble_quadrotors2/mocap/pose", 1, &FullyActuatedNobendController::pos2Callback, this);
-
     // extracting the robot_id from robot_ns
     std::smatch match;
     robot_ns = nh_.getNamespace();
-
     std::regex_search(robot_ns, match, std::regex("\\d"));
     robot_id = match.empty() ? 1 : std::stoi(match[0]);
-
     std_msgs::UInt32 msg;
     msg.data=robot_id;
     robot_id_pub_.publish(msg);
 
-    q_mat_new = robot_model_->calcWrenchMatrixOnCoG();
   }
 
-  void FullyActuatedNobendController::CalculateCoG(){
-    {
-      boost::lock_guard<boost::mutex> lock(pos1_mutex);
-      {
-        boost::lock_guard<boost::mutex> lock(pos2_mutex);
-          {
-            boost::lock_guard<boost::mutex> lock(cog_mutex);
+  inline void FullyActuatedNobendController::CalculateCoG(){
+    boost::lock_guard<boost::mutex> lock_pos1(pos1_mutex);
+    boost::lock_guard<boost::mutex> lock_pos2(pos2_mutex);
+    boost::lock_guard<boost::mutex> lock_cog(cog_mutex);
             geometry_msgs::Point cog;
             cog.x = (Pos1.position.x+Pos2.position.x)/2;
             cog.y = (Pos1.position.y+Pos2.position.y)/2;
             cog.z = (Pos1.position.z+Pos2.position.z)/2;
             CoG = cog;
             new_CoG_pub_.publish(cog);
-          }
-      }
-    }
     return;
   }
 
-  void FullyActuatedNobendController::CalculateRot(){
-    {
-      boost::lock_guard<boost::mutex> lock(att1_mutex);
-      {
-        boost::lock_guard<boost::mutex> lock(att2_mutex);
-        {
+  inline void FullyActuatedNobendController::CalculateRot(){
+    boost::lock_guard<boost::mutex> lock_att1(att1_mutex);
+    boost::lock_guard<boost::mutex> lock_att2(att2_mutex);
           Rot1 = Att1.toRotationMatrix();
           Rot2 = Att2.toRotationMatrix();
-        }
-      }
-    }
-    {
-      boost::lock_guard<boost::mutex> lock(rot_rel_mutex);
+  
+  
+    boost::lock_guard<boost::mutex> lock_att_rel(rot_rel_mutex);
       if(robot_id==1){ //calculate {}^1 R_{2} = ({}^0 R_{1})^T {}^0 R_{2}
         Rot_rel = Rot1.transpose() * Rot2;
       }
 
       else{ // calculate {}^2 R_{1}
         Rot_rel = Rot2.transpose() * Rot1;
-      }
-      {
-        boost::lock_guard<boost::mutex> lock(q_new_mutex);
-      }
     }
     return;
   }
 
-  void FullyActuatedNobendController::updateWrenchMatrixOnCoG(){
-    boost::lock_guard<boost::mutex> lock(rot_rel_mutex);
-    {
-      boost::lock_guard<boost::mutex> lock(q_new_mutex);
+  inline void FullyActuatedNobendController::updateWrenchMatrixOnCoG(){
+    
+    boost::lock_guard<boost::mutex> lock_att_rel(rot_rel_mutex);
+    boost::lock_guard<boost::mutex> lock_q(q_new_mutex);
       //linear
       if(robot_id == 1){ // xyz part corresponding to quadrotor1 remains the same
         q_mat_new.block(0,0,3,4) = q_mat_original.block(0,0,3,4);
@@ -165,34 +152,31 @@ namespace aerial_robot_control
       q_mat_new.row(5)=q_mat_original.row(5);
       q_mat_new.row(6)=q_mat_original.row(6);
       q_mat_new.row(7)=q_mat_original.row(7);
-    }
+    return;
   }
   void FullyActuatedNobendController::pos1Callback(const geometry_msgs::PoseStamped& msg){
     {
-      boost::lock_guard<boost::mutex> lock(pos1_mutex);
-      {
-        boost::lock_guard<boost::mutex> lock(att1_mutex);
+      boost::lock_guard<boost::mutex> lock_pos1(pos1_mutex);
+      boost::lock_guard<boost::mutex> lock_att1(att1_mutex);
         Pos1 = msg.pose;
         geometry_msgs::Quaternion msg_quat = msg.pose.orientation;
-        Att1 = Eigen::Quaterniond(msg_quat.w, msg_quat.x, msg_quat.y, msg_quat.z).normalized();
+      Att1 = Eigen::Quaterniond(msg_quat.w, msg_quat.x, msg_quat.y, msg_quat.z);
+      Att1.normalize();
       }
-    }
-    CalculateCoG();
-    CalculateRot();
-    updateWrenchMatrixOnCoG();
+    {CalculateCoG();}
+    {CalculateRot();}
+    {updateWrenchMatrixOnCoG();}
     return;
   }
-  
 
   void FullyActuatedNobendController::pos2Callback(const geometry_msgs::PoseStamped& msg){
     {
-      boost::lock_guard<boost::mutex> lock(pos2_mutex);
-      {
-        boost::lock_guard<boost::mutex> lock(att2_mutex);
+      boost::lock_guard<boost::mutex> lock_pos2(pos2_mutex);
+      boost::lock_guard<boost::mutex> lock_att2(att2_mutex);
         Pos2 = msg.pose;
         geometry_msgs::Quaternion msg_quat = msg.pose.orientation;
-        Att2 = Eigen::Quaterniond(msg_quat.w, msg_quat.x, msg_quat.y, msg_quat.z).normalized();
-      }
+      Att2 = Eigen::Quaterniond(msg_quat.w, msg_quat.x, msg_quat.y, msg_quat.z);
+      Att2.normalize();
     }
     return;
   }
@@ -377,8 +361,12 @@ namespace aerial_robot_control
   {
     PIDupdate();
     if(first){
+      {
       q_mat_original = robot_model_->calcWrenchMatrixOnCoG();
+        boost::lock_guard<boost::mutex> lock(q_new_mutex);
+        q_mat_new = robot_model_->calcWrenchMatrixOnCoG();
       first = false;
+      }
     }
 
     tf::Matrix3x3 uav_rot_yaw = tf::Matrix3x3(tf::createQuaternionFromRPY(0.0, 0.0, rpy_.z()));

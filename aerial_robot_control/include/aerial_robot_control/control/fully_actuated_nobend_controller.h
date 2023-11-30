@@ -46,6 +46,8 @@
 #include <string>
 #include <regex>
 #include <std_msgs/UInt32.h>
+#include <std_msgs/Float64.h>
+#include <aerial_robot_msgs/FlightNav.h>
 
 using boost::algorithm::clamp;
 
@@ -109,12 +111,11 @@ namespace aerial_robot_control
     boost::mutex att1_mutex, att2_mutex, rot_rel_mutex, q_new_mutex;
     Eigen::Matrix3d Rot1, Rot2, Rot_rel; // Rot_rel: frame {1 or 2}->{2 or 1}
     inline void CalculateRot();
-    void updateWrenchMatrixOnCoG();
+    inline void updateWrenchMatrixOnCoG();
     std::string robot_ns;
     int robot_id;
     Eigen::MatrixXd q_mat_new;
     ros::Publisher robot_id_pub_;
-    
 
   protected:
     ros::Publisher rpy_gain_pub_; //for spinal
