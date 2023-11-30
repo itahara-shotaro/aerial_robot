@@ -99,7 +99,8 @@ namespace aerial_robot_control
     geometry_msgs::Point CoG;
     boost::mutex pos1_mutex, pos2_mutex, cog_mutex;
     inline void CalculateCoG();
-    void pos1Callback(const geometry_msgs::PoseStamped& msg), pos2Callback(const geometry_msgs::PoseStamped& msg);
+    void pos1Callback(const geometry_msgs::PoseStamped& msg);
+    void pos2Callback(const geometry_msgs::PoseStamped& msg);
 
     // Position PID for new CoG
     boost::shared_ptr<PID> pid_x, pid_y, pid_z;
@@ -131,6 +132,21 @@ namespace aerial_robot_control
     int control_method;
     void rosParamInit();
 
+    // // target angle
+    ros::Subscriber TargetPitch1Subscriber;
+    ros::Subscriber TargetYaw1Subscriber;
+    ros::Subscriber TargetPitch2Subscriber;
+    ros::Subscriber TargetYaw2Subscriber;
+
+    ros::Publisher YawPublisher;
+
+    double TargetPitch1, TargetPitch2, TargetYaw1, TargetYaw2;
+    boost::mutex Pitch1mutex, Pitch2mutex, Yaw1mutex, Yaw2mutex;
+
+    void TargetPitch1Callback(const std_msgs::Float64& msg);
+    void TargetYaw1Callback(const std_msgs::Float64& msg);
+    void TargetPitch2Callback(const std_msgs::Float64& msg);
+    void TargetYaw2Callback(const std_msgs::Float64& msg);
 
   };
 } //namespace aerial_robot_control

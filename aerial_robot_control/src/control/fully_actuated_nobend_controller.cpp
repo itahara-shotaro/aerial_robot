@@ -96,6 +96,12 @@ namespace aerial_robot_control
     msg.data=robot_id;
     robot_id_pub_.publish(msg);
 
+    TargetPitch1Subscriber = nh_.subscribe("/target_pitch1",1,&FullyActuatedNobendController::TargetPitch1Callback, this);
+    TargetYaw1Subscriber   = nh_.subscribe("/target_yaw1",1,&FullyActuatedNobendController::TargetYaw1Callback, this);
+    TargetPitch2Subscriber = nh_.subscribe("/target_pitch2",1,&FullyActuatedNobendController::TargetPitch2Callback, this);
+    TargetYaw2Subscriber   = nh_.subscribe("/target_yaw2",1,&FullyActuatedNobendController::TargetYaw2Callback, this);
+
+    YawPublisher = nh_.advertise<aerial_robot_msgs::FlightNav>("uav/nav", 1);
   }
 
   inline void FullyActuatedNobendController::CalculateCoG(){
@@ -179,6 +185,47 @@ namespace aerial_robot_control
       Att2.normalize();
     }
     return;
+  }
+
+  void FullyActuatedNobendController::TargetPitch1Callback(const std_msgs::Float64& msg){
+    boost::lock_guard<boost::mutex> lock(Pitch1mutex);
+    TargetPitch1 = (msg).data;
+    if(robot_id == 1){
+      navigator_->setTargetPitch(TargetPitch1);
+    }
+  }
+
+  void FullyActuatedNobendController::TargetYaw1Callback(const std_msgs::Float64& msg){
+    boost::lock_guard<boost::mutex> lock(Yaw1mutex);
+    TargetYaw1 = (msg).data;
+    if(robot_id == 1){
+      aerial_robot_msgs::FlightNav send_msg;
+      send_msg.pos_xy_nav_mode=0;
+      send_msg.yaw_nav_mode=2;
+      send_msg.pos_z_nav_mode=0;
+      send_msg.target_yaw=TargetYaw1;
+      YawPublisher.publish(send_msg);
+    }
+  }
+
+  void FullyActuatedNobendController::TargetPitch2Callback(const std_msgs::Float64& msg){
+    boost::lock_guard<boost::mutex> lock(Pitch2mutex);
+    if(robot_id == 2){
+      navigator_->setTargetPitch(TargetPitch2);
+    }
+  }
+
+  void FullyActuatedNobendController::TargetYaw2Callback(const std_msgs::Float64& msg){
+    boost::lock_guard<boost::mutex> lock(Yaw2mutex);
+    TargetYaw2 = (msg).data;
+    if(robot_id == 2){
+      aerial_robot_msgs::FlightNav send_msg;
+      send_msg.pos_xy_nav_mode=0;
+      send_msg.yaw_nav_mode=2;
+      send_msg.pos_z_nav_mode=0;
+      send_msg.target_yaw=TargetYaw2;
+      YawPublisher.publish(send_msg);
+    }
   }
 
   void FullyActuatedNobendController::PIDupdate(){
@@ -441,7 +488,7 @@ namespace aerial_robot_control
       sr_inv.block(4,6,4,1) = Eigen::Vector4d::Zero(4);
       sr_inv.block(0,7,4,1) = Eigen::Vector4d::Zero(4);
       q_mat_inv_ = 10*sr_inv;
-      // ROS_INFO_STREAM(testaaaa);
+      // ROS_INFO_STREAM(q);
       
       //step3: calculate thrust accounting for softness & linear acc
 
