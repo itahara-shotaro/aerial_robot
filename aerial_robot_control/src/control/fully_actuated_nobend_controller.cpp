@@ -415,6 +415,17 @@ namespace aerial_robot_control
   {
     PIDupdate();
     if(first){
+      { 
+        boost::lock_guard<boost::mutex> lock_cog(cog_mutex);
+        aerial_robot_msgs::FlightNav msg;
+        msg.pos_xy_nav_mode = 2;
+        msg.yaw_nav_mode = 0;
+        msg.pos_z_nav_mode = 0;
+
+        msg.target_pos_x = CoG.x;
+        msg.target_pos_y = CoG.y;
+        YawPublisher.publish(msg);
+      }
       {
       q_mat_original = robot_model_->calcWrenchMatrixOnCoG();
         boost::lock_guard<boost::mutex> lock(q_new_mutex);
