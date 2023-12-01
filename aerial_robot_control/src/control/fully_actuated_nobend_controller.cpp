@@ -169,9 +169,11 @@ namespace aerial_robot_control
       Att1 = Eigen::Quaterniond(msg_quat.w, msg_quat.x, msg_quat.y, msg_quat.z);
       Att1.normalize();
       }
-    {CalculateCoG();}
-    {CalculateRot();}
-    {updateWrenchMatrixOnCoG();}
+    if(robot_id == 1){
+      {CalculateCoG();}
+      {CalculateRot();}
+      {updateWrenchMatrixOnCoG();}
+    }
     return;
   }
 
@@ -183,6 +185,11 @@ namespace aerial_robot_control
         geometry_msgs::Quaternion msg_quat = msg.pose.orientation;
       Att2 = Eigen::Quaterniond(msg_quat.w, msg_quat.x, msg_quat.y, msg_quat.z);
       Att2.normalize();
+    }
+    if(robot_id == 2){
+      {CalculateCoG();}
+      {CalculateRot();}
+      {updateWrenchMatrixOnCoG();}
     }
     return;
   }
