@@ -101,7 +101,7 @@ namespace aerial_robot_control
     TargetPitch2Subscriber = nh_.subscribe("/target_pitch2",1,&FullyActuatedNobendController::TargetPitch2Callback, this);
     TargetYaw2Subscriber   = nh_.subscribe("/target_yaw2",1,&FullyActuatedNobendController::TargetYaw2Callback, this);
 
-    YawPublisher = nh_.advertise<aerial_robot_msgs::FlightNav>("uav/nav", 1);
+    YawPublisher = nh_.advertise<aerial_robot_msgs::FlightNav>("/assemble_quadrotors"+std::to_string(robot_id)+"/uav/nav", 1);
   }
 
   inline void FullyActuatedNobendController::CalculateCoG(){
