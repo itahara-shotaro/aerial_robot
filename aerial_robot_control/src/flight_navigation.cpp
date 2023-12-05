@@ -881,5 +881,6 @@ void BaseNavigator::rosParamInit()
   getParam<double>(bat_nh, "bat_resistance", bat_resistance_, 0.0); //Battery internal resistance
   getParam<double>(bat_nh, "bat_resistance_voltage_rate", bat_resistance_voltage_rate_, 0.0); //Battery internal resistance_voltage_rate
   getParam<double>(bat_nh, "hovering_current", hovering_current_, 0.0); // current at hovering state
+  convergent_start_time_ = ros::Time::now().toSec();
 }
 
