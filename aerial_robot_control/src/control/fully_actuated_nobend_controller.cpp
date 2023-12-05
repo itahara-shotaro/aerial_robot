@@ -139,15 +139,19 @@ namespace aerial_robot_control
     
     boost::lock_guard<boost::mutex> lock_att_rel(rot_rel_mutex);
     boost::lock_guard<boost::mutex> lock_q(q_new_mutex);
+    Eigen::Matrix3d matrix_z180;
+    matrix_z180 << -1, 0, 0,
+              0, -1, 0,
+              0, 0, 1;
       //linear
       if(robot_id == 1){ // xyz part corresponding to quadrotor1 remains the same
         q_mat_new.block(0,0,3,4) = q_mat_original.block(0,0,3,4);
-        q_mat_new.block(0,4,3,4) = Rot_rel * q_mat_original.block(0,4,3,4);
+        q_mat_new.block(0,4,3,4) = Rot_rel.transpose()* matrix_z180 * q_mat_original.block(0,4,3,4);
       }
 
       else{
         q_mat_new.block(0,4,3,4) = q_mat_original.block(0,4,3,4);
-        q_mat_new.block(0,0,3,4) = Rot_rel * q_mat_original.block(0,0,3,4);
+        q_mat_new.block(0,0,3,4) = Rot_rel.transpose()* matrix_z180 * q_mat_original.block(0,0,3,4);
       }
 
       //roll
@@ -401,7 +405,7 @@ namespace aerial_robot_control
   void FullyActuatedNobendController::reset()
   {
     PoseLinearController::reset();
-
+    first=true;
     setAttitudeGains();
   }
 
@@ -419,6 +423,8 @@ namespace aerial_robot_control
         msg.target_pos_x = CoG.x;
         msg.target_pos_y = CoG.y;
         YawPublisher.publish(msg);
+        navigator_->setTargetPosX(CoG.x);
+        navigator_->setTargetPosY(CoG.y);
       }
       {
       q_mat_original = robot_model_->calcWrenchMatrixOnCoG();
