@@ -152,12 +152,6 @@ namespace aerial_robot_control
 
       //roll
       q_mat_new.row(3)=q_mat_original.row(3);
-
-      //pitch, yaw->does not matter
-      q_mat_new.row(4)=q_mat_original.row(4);
-      q_mat_new.row(5)=q_mat_original.row(5);
-      q_mat_new.row(6)=q_mat_original.row(6);
-      q_mat_new.row(7)=q_mat_original.row(7);
     return;
   }
   void FullyActuatedNobendController::pos1Callback(const geometry_msgs::PoseStamped& msg){
