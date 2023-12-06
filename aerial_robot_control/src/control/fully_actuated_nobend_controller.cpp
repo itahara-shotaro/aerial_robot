@@ -194,16 +194,20 @@ namespace aerial_robot_control
 
   void FullyActuatedNobendController::TargetPitch1Callback(const std_msgs::Float64& msg){
     boost::lock_guard<boost::mutex> lock(Pitch1mutex);
+    ROS_INFO_STREAM("p1");
     TargetPitch1 = (msg).data;
     if(robot_id == 1){
+      ROS_INFO_STREAM("set");
       navigator_->setTargetPitch(TargetPitch1);
     }
   }
 
   void FullyActuatedNobendController::TargetYaw1Callback(const std_msgs::Float64& msg){
     boost::lock_guard<boost::mutex> lock(Yaw1mutex);
+    ROS_INFO_STREAM("y1");
     TargetYaw1 = (msg).data;
     if(robot_id == 1){
+      ROS_INFO_STREAM("set");
       aerial_robot_msgs::FlightNav send_msg;
       send_msg.pos_xy_nav_mode=0;
       send_msg.yaw_nav_mode=2;
@@ -215,15 +219,20 @@ namespace aerial_robot_control
 
   void FullyActuatedNobendController::TargetPitch2Callback(const std_msgs::Float64& msg){
     boost::lock_guard<boost::mutex> lock(Pitch2mutex);
+    ROS_INFO_STREAM("p2");
+    TargetPitch2 = (msg).data;
     if(robot_id == 2){
+      ROS_INFO_STREAM("set");
       navigator_->setTargetPitch(TargetPitch2);
     }
   }
 
   void FullyActuatedNobendController::TargetYaw2Callback(const std_msgs::Float64& msg){
     boost::lock_guard<boost::mutex> lock(Yaw2mutex);
+    ROS_INFO_STREAM("y2");
     TargetYaw2 = (msg).data;
     if(robot_id == 2){
+      ROS_INFO_STREAM("set");
       aerial_robot_msgs::FlightNav send_msg;
       send_msg.pos_xy_nav_mode=0;
       send_msg.yaw_nav_mode=2;
