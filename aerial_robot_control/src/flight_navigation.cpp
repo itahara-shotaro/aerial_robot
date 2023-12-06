@@ -55,6 +55,8 @@ void BaseNavigator::initialize(ros::NodeHandle nh, ros::NodeHandle nhp,
   start_sub_ = teleop_nh.subscribe("start", 1,&BaseNavigator::startCallback, this);
   ctrl_mode_sub_ = teleop_nh.subscribe("ctrl_mode", 1, &BaseNavigator::xyControlModeCallback, this);
 
+  cog_pos_sub_ = nh_.subscribe("assemble/newCoG", 1, &BaseNavigator::newCoGCallback, this);
+
   ros::TransportHints joy_transport_hints;
 #ifdef ARM_MELODIC // https://github.com/ros/ros_comm/issues/1404
   joy_udp_ = false;
@@ -652,7 +654,8 @@ void BaseNavigator::update()
         }
     }
 
-  tf::Vector3 delta = target_pos_ - estimator_->getPos(Frame::COG, estimate_mode_);
+  tf::Vector3 delta;
+  {boost::lock_guard<boost::mutex> lock(mutex_cogpos); delta = target_pos_ - new_CoG/*estimator_->getPos(Frame::COG, estimate_mode_)*/;}
 
   /* check the hard landing in force_landing model */
   if(force_landing_flag_)

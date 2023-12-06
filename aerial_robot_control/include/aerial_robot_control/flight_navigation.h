@@ -7,6 +7,7 @@
 #include <aerial_robot_msgs/RollPitchNav.h>
 #include <angles/angles.h>
 #include <geometry_msgs/Vector3Stamped.h>
+#include <geometry_msgs/Point.h>
 #include <ros/ros.h>
 #include <sensor_msgs/Joy.h>
 #include <spinal/FlightConfigCmd.h>
@@ -228,6 +229,18 @@ namespace aerial_robot_navigation
     ros::NodeHandle nh_;
     ros::NodeHandle nhp_;
 
+    ros::Subscriber cog_pos_sub_;
+    tf::Vector3 new_CoG;
+    boost::mutex mutex_cogpos;
+
+    void newCoGCallback(const geometry_msgs::Point & msg){
+      boost::lock_guard<boost::mutex> lock(mutex_cogpos);
+      new_CoG.setX(msg.x);
+      new_CoG.setY(msg.y);
+      new_CoG.setZ(msg.z);
+      return;
+    }
+    
     ros::Publisher  flight_config_pub_;
     ros::Publisher  power_info_pub_;
     ros::Publisher  flight_state_pub_;
