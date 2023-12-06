@@ -146,12 +146,12 @@ namespace aerial_robot_control
       //linear
       if(robot_id == 1){ // xyz part corresponding to quadrotor1 remains the same
         q_mat_new.block(0,0,3,4) = q_mat_original.block(0,0,3,4);
-        q_mat_new.block(0,4,3,4) = Rot_rel.transpose()* matrix_z180 * q_mat_original.block(0,4,3,4);
+        q_mat_new.block(0,4,3,4) = Rot_rel* matrix_z180 * q_mat_original.block(0,4,3,4);
       }
 
       else{
         q_mat_new.block(0,4,3,4) = q_mat_original.block(0,4,3,4);
-        q_mat_new.block(0,0,3,4) = Rot_rel.transpose()* matrix_z180 * q_mat_original.block(0,0,3,4);
+        q_mat_new.block(0,0,3,4) = Rot_rel* matrix_z180 * q_mat_original.block(0,0,3,4);
       }
 
       //roll
