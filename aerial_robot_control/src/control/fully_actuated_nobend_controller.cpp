@@ -87,6 +87,7 @@ namespace aerial_robot_control
     CoG.z=0;
     Pos1Subscriber = nh_.subscribe("/assemble_quadrotors1/mocap/pose", 1, &FullyActuatedNobendController::pos1Callback, this);
     Pos2Subscriber = nh_.subscribe("/assemble_quadrotors2/mocap/pose", 1, &FullyActuatedNobendController::pos2Callback, this);
+    
     // extracting the robot_id from robot_ns
     std::smatch match;
     robot_ns = nh_.getNamespace();
@@ -102,6 +103,15 @@ namespace aerial_robot_control
     TargetYaw2Subscriber   = nh_.subscribe("/target_yaw2",1,&FullyActuatedNobendController::TargetYaw2Callback, this);
 
     YawPublisher = nh_.advertise<aerial_robot_msgs::FlightNav>("/assemble_quadrotors"+std::to_string(robot_id)+"/uav/nav", 1);
+
+    // PCS feedforward
+    if(robot_id==1){
+      imuSubscriber = nh_.subscribe("/assemble_quadrotors2/imu",1,&FullyActuatedNobendController::imuCallback, this);
+    }
+    else{
+      imuSubscriber = nh_.subscribe("/assemble_quadrotors1/imu",1,&FullyActuatedNobendController::imuCallback, this);
+    }
+    
   }
 
   inline void FullyActuatedNobendController::CalculateCoG(){
@@ -240,6 +250,12 @@ namespace aerial_robot_control
       send_msg.target_yaw=TargetYaw2;
       YawPublisher.publish(send_msg);
     }
+  }
+
+  void FullyActuatedNobendController::imuCallback(const spinal::Imu& msg){
+    boost::lock_guard<boost::mutex> guard(opposite_angle_mutex);
+    opposite_pitch_angle = msg.angles[1];
+    opposite_yaw_angle = msg.angles[2];
   }
 
   void FullyActuatedNobendController::PIDupdate(){
@@ -519,8 +535,18 @@ namespace aerial_robot_control
       Eigen::Vector3d gravity_CoG(gravity_cog.x(), gravity_cog.y(), gravity_cog.z() );
 
       Eigen::VectorXd thrust_constant = Eigen::VectorXd::Zero(8);
+
+      double strain_pitch, strain_yaw;
+
+      {
+        boost::lock_guard<boost::mutex> guard(opposite_angle_mutex);
+        boost::lock_guard<boost::mutex> lock_att_rel(rot_rel_mutex);
+        strain_pitch = rpy_.y()+opposite_pitch_angle;
+
+        strain_yaw = (Rot_rel.eulerAngles(0,1,2))(2);
+      }
       // thrust_constant << 0,0,0,0,0,(mass/2)*(pCoG_1.cross(gravity_CoG)).y(),(mass/2)*(pCoG_2.cross(gravity_CoG)).y();
-      thrust_constant << /*x*/0, /*y*/0, /*z*/0, /*r*/0, /*y1*/0, /*y2*/0, /*p1*/0, /*p2*/0; // PCS gen. force feed forward
+      thrust_constant << /*x*/0, /*y*/0, /*z*/0, /*r*/0, /*y1*/0, /*y2*/0, /*p1*/strain_pitch*pitch_pcs_gain, /*p2*/strain_pitch*pitch_pcs_gain; // PCS gen. force feed forward
       
       target_thrust_x_term = q_mat_inv_.col(X) * target_acc_cog.x();
       target_thrust_y_term = q_mat_inv_.col(Y) * target_acc_cog.y();
@@ -697,6 +723,8 @@ namespace aerial_robot_control
     getParam<double>(control_nh, "torque_allocation_matrix_inv_pub_interval", torque_allocation_matrix_inv_pub_interval_, 0.05);
     getParam<double>(control_nh, "wrench_allocation_matrix_pub_interval", wrench_allocation_matrix_pub_interval_, 0.1);
     getParam<int>(control_nh, "control_method", control_method, 0);
+    getParam<double>(control_nh, "pitch_pcs_gain", pitch_pcs_gain, 0.0);
+    getParam<double>(control_nh, "yaw_pcs_gain", yaw_pcs_gain, 0.0);
   }
 
   void FullyActuatedNobendController::setAttitudeGains()

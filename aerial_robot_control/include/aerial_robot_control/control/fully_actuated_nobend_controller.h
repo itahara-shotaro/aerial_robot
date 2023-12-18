@@ -39,6 +39,7 @@
 #include <spinal/FourAxisCommand.h>
 #include <spinal/RollPitchYawTerms.h>
 #include <spinal/TorqueAllocationMatrixInv.h>
+#include <spinal/Imu.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/Point.h>
@@ -117,6 +118,13 @@ namespace aerial_robot_control
     int robot_id;
     Eigen::MatrixXd q_mat_new;
     ros::Publisher robot_id_pub_;
+
+    // PCS feed forward
+    double pitch_pcs_gain, yaw_pcs_gain;
+    double opposite_pitch_angle, opposite_yaw_angle; boost::mutex opposite_angle_mutex; 
+
+    ros::Subscriber imuSubscriber;
+    void imuCallback(const spinal::Imu& msg);
 
   protected:
     ros::Publisher rpy_gain_pub_; //for spinal
