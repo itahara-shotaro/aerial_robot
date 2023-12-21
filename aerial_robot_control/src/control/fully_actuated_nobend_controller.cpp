@@ -128,6 +128,10 @@ namespace aerial_robot_control
   }
 
   inline void FullyActuatedNobendController::CalculateRot(){
+    Eigen::Matrix3d matrix_z90;
+    matrix_z90 << 0, -1, 0,
+                   1,  0, 0,
+                   0,  0, 1;
     boost::lock_guard<boost::mutex> lock_att1(att1_mutex);
     boost::lock_guard<boost::mutex> lock_att2(att2_mutex);
           Rot1 = Att1.toRotationMatrix();
@@ -142,6 +146,9 @@ namespace aerial_robot_control
       else{ // calculate {}^2 R_{1}
         Rot_rel = Rot2.transpose() * Rot1;
     }
+
+    double strain_yaw_temp = ((Rot_rel*matrix_z90).eulerAngles(2,1,0))(0);
+    strain_yaw = 1.57-std::fabs(strain_yaw_temp);
     return;
   }
 
@@ -536,17 +543,15 @@ namespace aerial_robot_control
 
       Eigen::VectorXd thrust_constant = Eigen::VectorXd::Zero(8);
 
-      double strain_pitch, strain_yaw;
 
       {
         boost::lock_guard<boost::mutex> guard(opposite_angle_mutex);
         boost::lock_guard<boost::mutex> lock_att_rel(rot_rel_mutex);
         strain_pitch = rpy_.y()+opposite_pitch_angle;
 
-        strain_yaw = (Rot_rel.eulerAngles(0,1,2))(2);
       }
       // thrust_constant << 0,0,0,0,0,(mass/2)*(pCoG_1.cross(gravity_CoG)).y(),(mass/2)*(pCoG_2.cross(gravity_CoG)).y();
-      thrust_constant << /*x*/0, /*y*/0, /*z*/0, /*r*/0, /*y1*/0, /*y2*/0, /*p1*/strain_pitch*pitch_pcs_gain, /*p2*/strain_pitch*pitch_pcs_gain; // PCS gen. force feed forward
+      thrust_constant << /*x*/0, /*y*/0, /*z*/0, /*r*/0, /*y1*/strain_yaw*yaw_pcs_gain, /*y2*/strain_yaw*yaw_pcs_gain, /*p1*/strain_pitch*pitch_pcs_gain, /*p2*/strain_pitch*pitch_pcs_gain; // PCS gen. force feed forward
       
       target_thrust_x_term = q_mat_inv_.col(X) * target_acc_cog.x();
       target_thrust_y_term = q_mat_inv_.col(Y) * target_acc_cog.y();

@@ -126,6 +126,8 @@ namespace aerial_robot_control
     ros::Subscriber imuSubscriber;
     void imuCallback(const spinal::Imu& msg);
 
+    double strain_pitch, strain_yaw;
+
   protected:
     ros::Publisher rpy_gain_pub_; //for spinal
     ros::Publisher torque_allocation_matrix_inv_pub_; //for spinal
