@@ -229,7 +229,7 @@ namespace aerial_robot_control
       send_msg.pos_xy_nav_mode=0;
       send_msg.yaw_nav_mode=2;
       send_msg.pos_z_nav_mode=0;
-      send_msg.target_yaw=TargetYaw1;
+      send_msg.target_yaw=TargetYaw1+initial_yaw;
       YawPublisher.publish(send_msg);
     }
   }
@@ -254,7 +254,7 @@ namespace aerial_robot_control
       send_msg.pos_xy_nav_mode=0;
       send_msg.yaw_nav_mode=2;
       send_msg.pos_z_nav_mode=0;
-      send_msg.target_yaw=TargetYaw2;
+      send_msg.target_yaw=TargetYaw2+initial_yaw;
       YawPublisher.publish(send_msg);
     }
   }
@@ -445,6 +445,7 @@ namespace aerial_robot_control
   {
     PIDupdate();
     if(first){
+      initial_yaw = (estimator_->getEuler(Frame::COG, estimate_mode_)).z();
       { 
         boost::lock_guard<boost::mutex> lock_cog(cog_mutex);
         navigator_->setTargetPosX(CoG.x);

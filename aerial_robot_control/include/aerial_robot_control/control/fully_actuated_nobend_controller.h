@@ -158,5 +158,7 @@ namespace aerial_robot_control
     void TargetPitch2Callback(const std_msgs::Float64& msg);
     void TargetYaw2Callback(const std_msgs::Float64& msg);
 
+    double initial_yaw;
+
   };
 } //namespace aerial_robot_control
