@@ -46,7 +46,7 @@ class Fig8Demo():
         i=0
         rospy.sleep(1)
         print("start")
-        while (not rospy.is_shutdown()) and (i < 2*self.circle_steps):
+        while (not rospy.is_shutdown()) and (i <= 2*self.circle_steps):
 
             if i<self.circle_steps:
                 

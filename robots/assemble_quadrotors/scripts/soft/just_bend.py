@@ -22,11 +22,11 @@ class BendDemo():
         # state variables
 
         # maximum allowed pitch/yaw (will move inside this)
-        self.max_yaw = 0.1
-        self.max_pitch = 0.2
+        self.max_yaw = 0.75
+        self.max_pitch = 0
 
         # step width and counts
-        self.angle_step = 10
+        self.max_step = 10
         self.step_count = 0
 
 
@@ -34,7 +34,8 @@ class BendDemo():
     def main(self):
         r = rospy.Rate(1.0) # 1hz -> angle_step[s] to reach max bend
 
-        while not rospy.is_shutdown():
+        while (not rospy.is_shutdown()) and (self.step_count<=self.max_step):
+            print(f"step {self.step_count} of {self.max_step}: yaw: {(self.step_count/self.max_step) * self.max_yaw}, pitch: {(self.step_count/self.max_step) * self.max_pitch}")
 
             # prepare msgs
             yaw1_msg = Float64()
@@ -43,11 +44,11 @@ class BendDemo():
             pitch2_msg = Float64()
 
             # set values
-            yaw1_msg.data = (self.max_yaw/2)*math.sin((math.pi/2)*(1/self.angle_step)*self.step_count)
-            yaw2_msg.data = -1*(self.max_yaw/2)*math.sin((math.pi/2)*(1/self.angle_step)*self.step_count)
+            yaw1_msg.data =  (self.step_count/self.max_step) * self.max_yaw
+            yaw2_msg.data = -(self.step_count/self.max_step) * self.max_yaw
 
-            pitch1_msg.data = (self.max_pitch/2)*math.sin((math.pi/2)*(1/self.angle_step)*self.step_count)
-            pitch2_msg.data = (self.max_pitch/2)*math.sin((math.pi/2)*(1/self.angle_step)*self.step_count)
+            pitch1_msg.data = (self.step_count/self.max_step) * self.max_pitch
+            pitch2_msg.data = (self.step_count/self.max_step) * self.max_pitch
 
             # send msgs
             self.yaw1_pub.publish(yaw1_msg)

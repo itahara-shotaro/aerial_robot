@@ -46,7 +46,7 @@ class CircleDemo():
         i=0
         rospy.sleep(1)
         print("start")
-        while (not rospy.is_shutdown()) and (i < self.circle_steps):
+        while (not rospy.is_shutdown()) and (i <= self.circle_steps):
 
             if i==0:
                 # move to the initial position (x=r,y=0)
