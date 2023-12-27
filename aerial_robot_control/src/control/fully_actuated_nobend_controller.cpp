@@ -563,39 +563,41 @@ namespace aerial_robot_control
 
     // method 2
     else{
-      //
-      double mass_inv =  1 / robot_model_->getMass();
-      Eigen::MatrixXd WrenchMatrixOnCoG = robot_model_->calcWrenchMatrixOnCoG();
-      Eigen::MatrixXd q_bottom_q1(3,8), q_bottom_q2(3,8), q1_bottom(3,8), q2_bottom(3,8);
 
-      q_bottom_q1 = WrenchMatrixOnCoG.bottomRows(3);
-      q_bottom_q2 = WrenchMatrixOnCoG.bottomRows(3);
+      // step 1: calculate new Q
+      Eigen::MatrixXd Q_new_test(8,8);
+      Eigen::VectorXd Q_row4 = Eigen::VectorXd::Zero(8), Q_row5 = Eigen::VectorXd::Zero(8); // yaw
+      Eigen::VectorXd Q_row6 = Eigen::VectorXd::Zero(8), Q_row7 = Eigen::VectorXd::Zero(8); // pitch
+
+      for(int i=0;i<4;i++){
+        // yaw
+        Q_row4(i) = (q_mat_original.row(5))(i);
+        Q_row5(i+4) = (q_mat_original.row(5))(i+4);
+      }
       
-      Eigen::VectorXd Q_row6 = Eigen::VectorXd::Zero(8), Q_row7 = Eigen::VectorXd::Zero(8);
       
       for(int i=0;i<4;i++){
-        Q_row6(i) = ( (rotors_origin[i]-pCoG_1).cross(rotors_normal[i]) ).y();
-        Q_row7(i+4) = ( (rotors_origin[i+4]-pCoG_2).cross(rotors_normal[i+4]) ).y();
+        Q_row6(i) = ( (rotors_origin_original[i]-pCoG_1).cross(rotors_normal_original[i]) ).y();
+        Q_row7(i+4) = ( (rotors_origin_original[i+4]-pCoG_2).cross(rotors_normal_original[i+4]) ).y();
       }
 
-      q_bottom_q1.row(1)=Q_row6;
-      q_bottom_q2.row(1)=Q_row7;
-
-      q1_bottom = q_bottom_q1;
-      q2_bottom = q_bottom_q2;
-
-
-      //ROS_INFO_STREAM(rotors_normal[0]);
-      Eigen::MatrixXd Q_new_test(7,8);
-      Q_new_test<<q_mat.row(0), q_mat.row(1), q_mat.row(2), q_mat.row(3) ,q_mat.row(5), q1_bottom.row(1), q2_bottom.row(1);
+      {
+        boost::lock_guard<boost::mutex> lock(q_new_mutex);
+        Q_new_test<<q_mat_new.row(0), q_mat_new.row(1), q_mat_new.row(2), q_mat_new.row(3), Q_row4.transpose(), Q_row5.transpose(), Q_row6.transpose(),Q_row7.transpose();
+      }
     
       // Step2: calculate SR-inverse of the new Q
-      double sr_inverse_sigma = 0.1;
+      double sr_inverse_sigma = 10;
       Eigen::MatrixXd q = Q_new_test;
       Eigen::MatrixXd q_q_t = q * q.transpose();
       Eigen::MatrixXd sr_inv = q.transpose() * (q_q_t + sr_inverse_sigma* Eigen::MatrixXd::Identity(q_q_t.cols(), q_q_t.rows())).inverse();
 
-      q_mat_inv_=sr_inv;
+      // removing irravent things
+      sr_inv.block(4,4,4,1) = Eigen::Vector4d::Zero(4);
+      sr_inv.block(0,5,4,1) = Eigen::Vector4d::Zero(4);
+      sr_inv.block(4,6,4,1) = Eigen::Vector4d::Zero(4);
+      sr_inv.block(0,7,4,1) = Eigen::Vector4d::Zero(4);
+      q_mat_inv_ = 10*sr_inv;
 
       //step3: calculate thrust accounting for softness & linear acc
       target_thrust_x_term = q_mat_inv_.col(X) * target_acc_cog.x();
