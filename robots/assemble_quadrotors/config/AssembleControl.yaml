@@ -44,8 +44,8 @@ assemble:
 
     roll:
       p_gain: 18
-      i_gain: 2
-      d_gain: 3
+      i_gain: 0.3
+      d_gain: 6
       limit_sum: 20.0
       limit_p: 20.0
       limit_i: 20.0
