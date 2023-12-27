@@ -10,13 +10,13 @@
 
   <!-- kinematics [m] -->
 
-  <xacro:property name="rotor_x_near" value="0.4991" />
-  <xacro:property name="rotor_y_near" value="0.1073" />
-  <xacro:property name="rotor_z_near" value="0.0351" />
-  <xacro:property name="rotor_x_far" value="0.7386" />
-  <xacro:property name="rotor_y_far" value="0.1077" />
-  <xacro:property name="rotor_z_far" value="0.0358" />
-  <xacro:property name="rotor_tilt" value="${pi/9}" />
+  <xacro:property name="rotor_x_near" value="0.468" />
+  <xacro:property name="rotor_y_near" value="0.131" />
+  <xacro:property name="rotor_z_near" value="0.0531" />
+  <xacro:property name="rotor_x_far" value="0.776" />
+  <xacro:property name="rotor_y_far" value="0.133" />
+  <xacro:property name="rotor_z_far" value="0.0509" />
+  <xacro:property name="rotor_tilt" value="${pi/4}" />
 
   <!-- dynamics -->
   <m_f_rate value="-0.006" /> <!-- drag torque rate, the true value should be -0.006 -->
