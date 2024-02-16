@@ -22,8 +22,8 @@ class BendDemo():
         # state variables
 
         # maximum allowed pitch/yaw (will move inside this)
-        self.max_yaw = 0.1
-        self.max_pitch = 0.2
+        self.max_yaw = 0.5
+        self.max_pitch = 0.0
 
         # step width and counts
         self.angle_step = 10
@@ -32,9 +32,10 @@ class BendDemo():
 
     #main func
     def main(self):
-        r = rospy.Rate(1.0) # 1hz -> angle_step[s] to reach max bend
+        r = rospy.Rate(0.3) # 1hz -> angle_step[s] to reach max bend
 
         while not rospy.is_shutdown():
+            print((self.max_yaw)*math.sin((math.pi/2)*(1/self.angle_step)*self.step_count))
 
             # prepare msgs
             yaw1_msg = Float64()
@@ -57,6 +58,12 @@ class BendDemo():
 
             r.sleep()
             self.step_count+=1
+            if self.step_count%self.angle_step==0:
+                print("waiting for 20 seconds")
+                print(f"angle:{(self.max_yaw/2)*math.sin((math.pi/2)*(1/self.angle_step)*self.step_count)}")
+                rospy.sleep(20)
+            
+
 
 if __name__=="__main__":
     try:

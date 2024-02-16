@@ -18,7 +18,7 @@ class CubeDemo():
         self.cog_loc_x_init = 2.0
         self.cog_loc_y_init = 1.0
         self.cog_loc_z_init = 0.5
-        first = True
+        self.first = True
         
         # cube length[m]
         self.cube_length = 0.5
@@ -33,7 +33,7 @@ class CubeDemo():
                             [0.0,              0.0,              self.cube_length],
                             [0.0,              0.0,              0.0]]
 
-        self.move_time = 5.0
+        self.move_time = 1.0
 
         # subscribers & publishers
         self.nav1_pub = rospy.Publisher("/assemble_quadrotors1/uav/nav",FlightNav , queue_size=1)
@@ -42,10 +42,10 @@ class CubeDemo():
         self.initial_cog_sub = rospy.Subscriber('/assemble_quadrotors1/assemble/newCoG',Point,self.initialCoGCallback)
 
     def initialCoGCallback(self, msg):
-        if first is True:
+        if self.first is True:
             self.cog_loc_x_init = msg.x
             self.cog_loc_y_init = msg.y
-            first = False
+            self.first = False
         else:
             return
     

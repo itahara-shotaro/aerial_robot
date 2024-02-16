@@ -17,7 +17,7 @@ class Fig8Demo():
         # initial CoG location (use this as the center)
         self.cog_loc_x_init = 2.0
         self.cog_loc_y_init = 1.0
-        first = True
+        self.first = True
         
         # circle radius[m]
         self.circle_radius = 0.5
@@ -32,16 +32,16 @@ class Fig8Demo():
         self.initial_cog_sub = rospy.Subscriber('/assemble_quadrotors1/assemble/newCoG',Point,self.initialCoGCallback)
 
     def initialCoGCallback(self, msg):
-        if first is True:
+        if self.first is True:
             self.cog_loc_x_init = msg.x
             self.cog_loc_y_init = msg.y
-            first = False
+            self.first = False
         else:
             return
     
     #main func
     def main(self):
-        r = rospy.Rate(1) # 1hz -> angle_step[s] to reach max bend
+        r = rospy.Rate(1.8) # 1hz -> angle_step[s] to reach max bend
 
         i=0
         rospy.sleep(1)

@@ -33,7 +33,9 @@ if __name__=="__main__":
     total_args = len(sys.argv)
     try:
         if(total_args > 1):
+            print(float(sys.argv[1]))
             allyaw = AllYaw()
+            rospy.sleep(1)
             allyaw.turn(float(sys.argv[1]))
         else:
             print("no target yaw provided")

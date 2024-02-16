@@ -17,7 +17,7 @@ class CircleDemo():
         # initial CoG location (use this as the center)
         self.cog_loc_x_init = 0.0
         self.cog_loc_y_init = 0.0
-        first = True
+        self.first = True
         
         # circle radius[m]
         self.circle_radius = 0.5
@@ -32,16 +32,16 @@ class CircleDemo():
         self.initial_cog_sub = rospy.Subscriber('/assemble_quadrotors1/assemble/newCoG',Point,self.initialCoGCallback)
 
     def initialCoGCallback(self, msg):
-        if first is True:
+        if self.first is True:
             self.cog_loc_x_init = msg.x
             self.cog_loc_y_init = msg.y
-            first = False
+            self.first = False
         else:
             return
     
     #main func
     def main(self):
-        r = rospy.Rate(1.0) # 1hz -> angle_step[s] to reach max bend
+        r = rospy.Rate(2) # 1hz -> angle_step[s] to reach max bend
 
         i=0
         rospy.sleep(1)
@@ -54,6 +54,19 @@ class CircleDemo():
                 initial_position.target = 1
                 initial_position.control_frame = 0
                 initial_position.pos_xy_nav_mode=2
+                initial_position.target_pos_x = self.cog_loc_x_init + self.circle_radius/2
+                initial_position.target_pos_y = self.cog_loc_y_init
+                
+                self.nav1_pub.publish(initial_position)
+                self.nav2_pub.publish(initial_position)
+
+                print("sending to initial location")
+                rospy.sleep(2)
+
+                initial_position = FlightNav()
+                initial_position.target = 1
+                initial_position.control_frame = 0
+                initial_position.pos_xy_nav_mode=2
                 initial_position.target_pos_x = self.cog_loc_x_init + self.circle_radius
                 initial_position.target_pos_y = self.cog_loc_y_init
                 
@@ -61,7 +74,7 @@ class CircleDemo():
                 self.nav2_pub.publish(initial_position)
 
                 print("sending to initial location")
-                rospy.sleep(5)
+                rospy.sleep(2)
                 
             print(f"step {i+1} of {self.circle_steps}")
             theta = i * (2*math.pi)/self.circle_steps
