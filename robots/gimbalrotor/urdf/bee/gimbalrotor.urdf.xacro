@@ -24,15 +24,12 @@
     ## link
     <link name="base_link">
       <inertial>
+        <origin xyz="-0.00055912 -0.00191842 0.00251468" rpy="0 0 0"/>
         <mass value="1.096"/>
-        <origin xyz="-0.00191842 0.00055912 0.00251468" rpy="0 0 0"/>
         <inertia
-            ixx="0.00311483956"
-            ixy="-0.00000575009"
-            ixz="0.00010503988"
-            iyy="0.00372524151"
-            iyz="0.00002212425"
-            izz="0.00430515832"
+            ixx="0.00372944293" ixy="0.00000575009" ixz="-0.00002212425"
+            iyy="0.00311904098" iyz="0.00010503988"
+            izz="0.00431356116"
             />
       </inertial>
       <visual>
@@ -145,19 +142,16 @@
     ## link
     #### rotor parent link (virtual) ####
     <link name="gimbal_link${self}">
-    <inertial>
-      <mass value="0.04944"/>
-      <origin xyz="0.02631527 0.03530709 -0.07078771" rpy="0 0 0"/>
-      <inertia
-        ixx="0.00001018740"
-        ixy="-0.00000000588"
-        ixz="-0.00000168229"
-        iyy="0.00001158109"
-        iyz="-0.00000000185"
-        izz="0.00001165546"
-      />
-    </inertial>
-    <collision>
+      <inertial>
+        <origin xyz="0.01483947 0.00001426 -0.02606996" rpy="0 0 0"/>
+        <mass value="0.04944"/>
+        <inertia
+            ixx="0.00001165546" ixy="-0.00000000185" ixz="-0.00000168229"
+            iyy="0.00001158109" iyz="-0.00000000588"
+            izz="0.00001018740"
+            />
+      </inertial>
+      <collision>
         <origin xyz="0.0 0 0" rpy="0 0 0"/>
         <geometry>
           <cylinder radius="0.018" length="0.033"/>
@@ -166,7 +160,7 @@
       <visual>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://gimbalrotor/urdf/bee/mesh/rotor_module.STL"/>
+          <mesh filename="package://gimbalrotor/urdf/bee/mesh/rotor_module_downward.STL"/>
         </geometry>
       </visual>
     </link>
@@ -232,7 +226,7 @@
       <limit effort="100.0" lower="${min_force}" upper="${max_force}" velocity="0.5"/>
       <parent link="rotor_parent${self}"/>
       <child link="thrust${self}"/>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <origin rpy="0 0 0" xyz="0 0 -0.04"/>
       <axis xyz="0 0 ${rotor_direction}"/>
     </joint>
 
