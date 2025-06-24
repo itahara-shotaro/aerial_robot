@@ -34,6 +34,8 @@ namespace aerial_robot_control
     rpy_gain_pub_ = nh_.advertise<spinal::RollPitchYawTerms>("rpy/gain", 1);
     torque_allocation_matrix_inv_pub_ = nh_.advertise<spinal::TorqueAllocationMatrixInv>("torque_allocation_matrix_inv", 1);
     gimbal_dof_pub_ = nh_.advertise<std_msgs::UInt8>("gimbal_dof", 1);
+    last_gain_set_time_ = ros::Time::now().toSec();
+    gain_set_interval_ = 0.1;
   }
 
   void GimbalrotorController::reset()
@@ -60,6 +62,12 @@ namespace aerial_robot_control
       msg.data = gimbal_dof_;
       gimbal_dof_pub_.publish(msg);
     }
+
+    if(ros::Time::now().toSec() - last_gain_set_time_ > gain_set_interval_)
+      {
+	setAttitudeGains();
+	last_gain_set_time_ = ros::Time::now().toSec();
+      }
 
     return PoseLinearController::update();
   }
