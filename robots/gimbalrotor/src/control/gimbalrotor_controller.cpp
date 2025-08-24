@@ -8,7 +8,7 @@ namespace aerial_robot_control
     PoseLinearController()
   {
   }
-
+  :
   void GimbalrotorController::initialize(ros::NodeHandle nh, ros::NodeHandle nhp,
                                          boost::shared_ptr<aerial_robot_model::RobotModel> robot_model,
                                          boost::shared_ptr<aerial_robot_estimation::StateEstimator> estimator,

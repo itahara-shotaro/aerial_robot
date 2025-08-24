@@ -27,7 +27,7 @@ include_directories(
 add_library(gimbalrotor_controller src/control/gimbalrotor_controller.cpp)
 target_link_libraries(gimbalrotor_controller ${catkin_LIBRARIES})
 
-add_library(gimbalrotor_robot_model src/model/gimbalrotor_robot_model.cpp)
+add_library(gimbalrotor_robot_model src/model/gimbalrotor_robot_model.cpp src/model/gimballqi_robot_model.cpp)
 target_link_libraries(gimbalrotor_robot_model ${catkin_LIBRARIES})
 
 add_library(gimbalrotor_navigation src/gimbalrotor_navigation.cpp)
