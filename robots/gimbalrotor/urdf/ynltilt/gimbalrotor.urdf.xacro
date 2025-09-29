@@ -2,6 +2,9 @@
 <robot
     xmlns:xacro="http://www.ros.org/wiki/xacro" name="gimbalrotor_link" >
 
+  <!-- Include ZED camera macro -->
+  <xacro:include filename="zed_macro.urdf.xacro" />
+
   <xacro:macro name="gimbalrotor_center_link" params="child1 child2 child3 child4">
     ## dummy
     <link name="root">
@@ -160,6 +163,12 @@
     </joint>
 
     <xacro:friction self="base_link"/>
+
+    <!-- ZED X MINI Camera Integration -->
+    <xacro:zed_camera name="zedxm" model="zedxm" parent="base_link">
+      <!-- ドローン原点からZED X MINIのねじ穴までの相対座標-->
+      <origin xyz="0.08318 0.0 0.027" rpy="0 0 0" />
+    </xacro:zed_camera>
   </xacro:macro>
 
   <xacro:macro name="gimbalrotor_thrust_link" params="self rotor_direction">
