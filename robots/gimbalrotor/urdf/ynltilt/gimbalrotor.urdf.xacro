@@ -27,16 +27,16 @@
     ## link
     <link name="base_link">
       <!-- Inertial must be calculate in COG and multiple 10^9 against SolidWorks output -->
-      <!--with Pruning-Tool and ZED-X-mini-->
-	<!-- <inertial>
-        <origin xyz="0.4193 0 0.4581" rpy="0 0 0"/>
-        <mass value="2.15088"/>
+      <!--with Pruning-Tool-Sector and ZED-X-mini-->
+	<inertial>
+        <origin xyz="0.6353 -0.0527 0.4362" rpy="0 0 0"/>
+        <mass value="2.32375"/>
         <inertia
-            ixx="0.02834257041" ixy="0.00079044376" ixz="-0.00444925108"
-            iyx="0.00079044376" iyy="0.05504841972" iyz="-0.00032810096"
-            izx="-0.00444925108" izy="-0.00032810096" izz="0.07516900973"/>
+            ixx="0.03008400484" ixy="-0.00297777401" ixz="-0.00664821011"
+            iyx="-0.00297777401" iyy="0.06882060466" iyz="0.00047002139"
+            izx="-0.00664821011" izy="0.00047002139" izz="0.08922548478"/>
 	</inertial>
-	-->
+
 
 
       <!--Without Prunning Tools-->
