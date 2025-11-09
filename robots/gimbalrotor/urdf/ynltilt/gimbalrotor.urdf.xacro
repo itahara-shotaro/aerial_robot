@@ -27,16 +27,28 @@
     ## link
     <link name="base_link">
       <!-- Inertial must be calculate in COG and multiple 10^9 against SolidWorks output -->
-      <!--with Pruning-Tool-Sector and ZED-X-mini-->
-	<inertial>
+
+    <!--With Pruning-Tool-Sector and zedXmini ON THE PLATE-->
+      <inertial>
+            <origin xyz="0.06310 -0.00517 0.05062" rpy="0 0 0"/>
+            <mass value="2.33579"/>
+            <inertia
+                ixx="0.03008400484" ixy="-0.00297777401" ixz="-0.00664821011"
+                iyx="-0.00297777401" iyy="0.06882060466" iyz="0.00047002139"
+                izx="-0.00664821011" izy="0.00047002139" izz="0.08922548478"/>
+      </inertial>
+
+
+      <!--with Pruning-Tool-Sector and zedXmini BETWEEN PLATES-->
+<!--      <inertial>
         <origin xyz="0.06353 -0.00527 0.04362" rpy="0 0 0"/>
         <mass value="2.32375"/>
         <inertia
             ixx="0.03008400484" ixy="-0.00297777401" ixz="-0.00664821011"
             iyx="-0.00297777401" iyy="0.06882060466" iyz="0.00047002139"
             izx="-0.00664821011" izy="0.00047002139" izz="0.08922548478"/>
-	</inertial>
-
+	    </inertial>
+-->
 
 
       <!--Without Prunning Tools-->
@@ -166,8 +178,8 @@
 
     <!-- ZED X MINI Camera Integration -->
     <xacro:zed_camera name="zedxm" model="zedxm" parent="base_link">
-      <!-- ドローン原点からZED X MINIのねじ穴までの相対座標-->
-      <origin xyz="0.08318 0.0 0.027" rpy="0 0 0" />
+      <!-- ドローン原点からzedXminiのねじ穴までの相対座標（ZED on TOP plate）-->
+      <origin xyz="0.08653 0.0 0.09595" rpy="0 0 0" />
     </xacro:zed_camera>
   </xacro:macro>
 
