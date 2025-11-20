@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include <numeric>
 #include <aerial_robot_control/control/base/pose_linear_controller.h>
 #include <aerial_robot_control/control/fully_actuated_controller.h>
 #include <aerial_robot_estimation/state_estimation.h>
@@ -47,6 +48,8 @@ namespace aerial_robot_control
     int gimbal_dof_;
     int rotor_coef_;
     bool gimbal_calc_in_fc_;
+    bool underactuate_;
+    double target_roll_ = 0.0, target_pitch_ = 0.0;
 
     void rosParamInit();
     bool update() override;
