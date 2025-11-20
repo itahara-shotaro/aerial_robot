@@ -317,4 +317,38 @@
           iyy="0.0" iyz="0.0" izz="0.0"/>
     </inertial>
   </xacro:extra_module>
+
+    <!-- Arm (Scissors) rotation center -->
+  <xacro:extra_module name="scissor_center" parent="base_link" visible="1">
+    <origin xyz="0.42126 -0.0154 -0.0003" rpy="0 0 0"/>
+    <inertial>
+      <mass value="0.00001"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia
+          ixx="0.000001" ixy="0.0" ixz="0.0"
+          iyy="0.000001" iyz="0.0" izz="0.000001"/>
+    </inertial>
+  </xacro:extra_module>
+
+  <link name="arm_link_1">
+    <inertial>
+      <mass value="0.001"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.02 0.02 0.02"/>
+      </geometry>
+    </visual>
+  </link>
+
+  <joint name="scissor_joint" type="fixed">
+    <parent link="scissor_center"/>
+    <child link="arm_link_1"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+
 </robot>
