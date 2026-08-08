@@ -3,6 +3,7 @@
 """Publish a spline-resampled CSV trajectory as FlightNav commands."""
 
 import csv
+import math
 import os
 import threading
 from dataclasses import dataclass
@@ -11,6 +12,7 @@ import numpy as np
 import rospkg
 import rospy
 from aerial_robot_msgs.msg import FlightNav
+from nav_msgs.msg import Odometry
 from scipy.interpolate import CubicSpline
 from std_msgs.msg import UInt8
 from std_srvs.srv import Trigger, TriggerResponse
@@ -128,6 +130,59 @@ def navigation_mode(include_position, include_velocity):
     return FlightNav.NO_NAVIGATION
 
 
+def yaw_from_quaternion(x, y, z, w):
+    """Extract yaw from a finite, nonzero quaternion."""
+    quaternion = np.asarray((x, y, z, w), dtype=float)
+    if not np.all(np.isfinite(quaternion)):
+        raise TrajectoryError("odometry orientation contains a non-finite value")
+
+    norm = np.linalg.norm(quaternion)
+    if norm <= np.finfo(float).eps:
+        raise TrajectoryError("odometry orientation quaternion has zero length")
+    x, y, z, w = quaternion / norm
+    return math.atan2(2.0 * (w * z + x * y), 1.0 - 2.0 * (y * y + z * z))
+
+
+def align_trajectory_to_pose(trajectory, position, yaw, minimum_altitude):
+    """Yaw-align a trajectory's first pose to a world-frame COG pose."""
+    position = np.asarray(position, dtype=float)
+    if position.shape != (3,) or not np.all(np.isfinite(position)):
+        raise TrajectoryError("odometry position must contain three finite values")
+    if not np.isfinite(yaw):
+        raise TrajectoryError("odometry yaw must be finite")
+    if not np.isfinite(minimum_altitude):
+        raise TrajectoryError("minimum_altitude must be finite")
+
+    initial_yaw = trajectory.values["yaw"][0]
+    yaw_offset = yaw - initial_yaw
+    cos_yaw = math.cos(yaw_offset)
+    sin_yaw = math.sin(yaw_offset)
+
+    relative_x = trajectory.values["x"] - trajectory.values["x"][0]
+    relative_y = trajectory.values["y"] - trajectory.values["y"][0]
+    values = {name: np.array(data, copy=True) for name, data in trajectory.values.items()}
+    values["x"] = position[0] + cos_yaw * relative_x - sin_yaw * relative_y
+    values["y"] = position[1] + sin_yaw * relative_x + cos_yaw * relative_y
+    values["z"] = position[2] + trajectory.values["z"] - trajectory.values["z"][0]
+    values["yaw"] = trajectory.values["yaw"] + yaw_offset
+
+    velocity_x = trajectory.values["vx"]
+    velocity_y = trajectory.values["vy"]
+    values["vx"] = cos_yaw * velocity_x - sin_yaw * velocity_y
+    values["vy"] = sin_yaw * velocity_x + cos_yaw * velocity_y
+
+    actual_minimum_altitude = float(np.min(values["z"]))
+    if actual_minimum_altitude < minimum_altitude and not np.isclose(
+        actual_minimum_altitude, minimum_altitude, rtol=0.0, atol=1.0e-12
+    ):
+        raise TrajectoryError(
+            "aligned trajectory minimum altitude {:.3f} m is below the {:.3f} m "
+            "safety threshold".format(actual_minimum_altitude, minimum_altitude)
+        )
+
+    return ResampledTrajectory(times=trajectory.times, values=values)
+
+
 def make_flight_nav(
     sample,
     include_position,
@@ -228,6 +283,14 @@ class CsvTrajectoryCommandNode:
         self.include_angular_velocity = bool(
             rospy.get_param("~include_angular_velocity", True)
         )
+        self.minimum_altitude = float(rospy.get_param("~minimum_altitude", 0.30))
+        self.odometry_timeout = float(rospy.get_param("~odometry_timeout", 0.5))
+        self.odometry_topic = rospy.get_param("~odometry_topic", "uav/cog/odom")
+
+        if not np.isfinite(self.minimum_altitude):
+            raise TrajectoryError("minimum_altitude must be finite")
+        if not np.isfinite(self.odometry_timeout) or self.odometry_timeout <= 0.0:
+            raise TrajectoryError("odometry_timeout must be a positive finite number")
 
         if not any(
             (
@@ -244,9 +307,15 @@ class CsvTrajectoryCommandNode:
             resolved_path, self.publish_frequency
         )
         self.playback = PlaybackStateMachine(len(self.trajectory))
+        self.active_trajectory = None
+        self.latest_cog_pose = None
+        self.latest_odometry_time = None
         self.lock = threading.RLock()
 
         self.nav_publisher = rospy.Publisher("uav/nav", FlightNav, queue_size=1)
+        self.odometry_subscriber = rospy.Subscriber(
+            self.odometry_topic, Odometry, self._odometry_callback, queue_size=1
+        )
         self.flight_state_subscriber = rospy.Subscriber(
             "flight_state", UInt8, self._flight_state_callback, queue_size=1
         )
@@ -263,6 +332,26 @@ class CsvTrajectoryCommandNode:
             self.publish_frequency,
         )
 
+    def _odometry_callback(self, msg):
+        position = msg.pose.pose.position
+        orientation = msg.pose.pose.orientation
+        try:
+            pose = (
+                np.asarray((position.x, position.y, position.z), dtype=float),
+                yaw_from_quaternion(
+                    orientation.x, orientation.y, orientation.z, orientation.w
+                ),
+            )
+            if not np.all(np.isfinite(pose[0])):
+                raise TrajectoryError("odometry position contains a non-finite value")
+        except TrajectoryError as exc:
+            rospy.logerr_throttle(1.0, "ignoring invalid COG odometry: %s", exc)
+            return
+
+        with self.lock:
+            self.latest_cog_pose = pose
+            self.latest_odometry_time = rospy.Time.now()
+
     def _flight_state_callback(self, msg):
         with self.lock:
             aborted = self.playback.update_flight_state(msg.data)
@@ -274,11 +363,40 @@ class CsvTrajectoryCommandNode:
 
     def _start_callback(self, _request):
         with self.lock:
-            success, message = self.playback.start()
+            if self.playback.state != self.playback.IDLE:
+                success, message = self.playback.start()
+            elif self.playback.flight_state != HOVER_STATE:
+                success, message = self.playback.start()
+            elif self.latest_cog_pose is None:
+                success = False
+                message = "cannot start trajectory without valid COG odometry"
+            else:
+                odometry_age = (rospy.Time.now() - self.latest_odometry_time).to_sec()
+                if odometry_age < 0.0 or odometry_age > self.odometry_timeout:
+                    success = False
+                    message = (
+                        "cannot start trajectory: COG odometry is stale "
+                        "({:.3f} s old; limit {:.3f} s)".format(
+                            odometry_age, self.odometry_timeout
+                        )
+                    )
+                else:
+                    position, yaw = self.latest_cog_pose
+                    try:
+                        aligned_trajectory = align_trajectory_to_pose(
+                            self.trajectory, position, yaw, self.minimum_altitude
+                        )
+                    except TrajectoryError as exc:
+                        success = False
+                        message = "cannot start trajectory: {}".format(exc)
+                    else:
+                        success, message = self.playback.start()
+                        if success:
+                            self.active_trajectory = aligned_trajectory
         if success:
             rospy.loginfo(message)
         else:
-            rospy.logwarn(message)
+            rospy.logerr(message)
         return TriggerResponse(success=success, message=message)
 
     def _publish_callback(self, _event):
@@ -287,7 +405,7 @@ class CsvTrajectoryCommandNode:
             if action is None:
                 return
             sample_index, zero_rates = action
-            sample = self.trajectory.sample(sample_index)
+            sample = self.active_trajectory.sample(sample_index)
             msg = make_flight_nav(
                 sample,
                 self.include_position,

@@ -1,5 +1,8 @@
 trajectory_file: trajectory/5x20_actual.csv
 publish_frequency: 40.0
+odometry_topic: uav/cog/odom
+odometry_timeout: 0.5
+minimum_altitude: 0.30
 
 include_position: true
 include_attitude: true

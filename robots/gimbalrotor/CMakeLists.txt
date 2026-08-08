@@ -10,6 +10,7 @@ find_package(catkin REQUIRED COMPONENTS
   aerial_robot_msgs
   spinal
   pluginlib
+  nav_msgs
   roscpp
   rospy
   std_msgs
@@ -19,7 +20,7 @@ find_package(catkin REQUIRED COMPONENTS
 find_package(Eigen3 REQUIRED)
 
 catkin_package(
-  CATKIN_DEPENDS aerial_robot_control aerial_robot_estimation aerial_robot_model aerial_robot_msgs pluginlib roscpp rospy spinal std_msgs std_srvs
+  CATKIN_DEPENDS aerial_robot_control aerial_robot_estimation aerial_robot_model aerial_robot_msgs nav_msgs pluginlib roscpp rospy spinal std_msgs std_srvs
 )
 
 include_directories(
