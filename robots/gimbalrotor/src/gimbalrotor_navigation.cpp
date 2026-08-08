@@ -5,7 +5,13 @@
 using namespace aerial_robot_model;
 using namespace aerial_robot_navigation;
 
-GimbalrotorNavigator::GimbalrotorNavigator() : BaseNavigator(), eq_cog_world_(false)
+GimbalrotorNavigator::GimbalrotorNavigator()
+  : BaseNavigator(),
+    eq_cog_world_(false),
+    roll_nav_mode_(aerial_robot_msgs::FlightNav::NO_NAVIGATION),
+    pitch_nav_mode_(aerial_robot_msgs::FlightNav::NO_NAVIGATION),
+    roll_nav_reset_time_(0),
+    pitch_nav_reset_time_(0)
 {
   curr_target_baselink_rot_.setRPY(0, 0, 0);
   final_target_baselink_rot_.setRPY(0, 0, 0);
@@ -30,6 +36,40 @@ void GimbalrotorNavigator::initialize(ros::NodeHandle nh, ros::NodeHandle nhp,
 void GimbalrotorNavigator::update()
 {
   BaseNavigator::update();
+
+  const double now = ros::Time::now().toSec();
+  if (roll_nav_mode_ == aerial_robot_msgs::FlightNav::VEL_MODE)
+  {
+    if (now <= roll_nav_reset_time_)
+      setTargetRoll(getTargetRPY().x() + getTargetOmega().x() * loop_du_);
+    else
+    {
+      setTargetOmegaX(0);
+      roll_nav_mode_ = aerial_robot_msgs::FlightNav::POS_MODE;
+    }
+  }
+  else if (roll_nav_mode_ == aerial_robot_msgs::FlightNav::POS_VEL_MODE && now > roll_nav_reset_time_)
+  {
+    setTargetOmegaX(0);
+    roll_nav_mode_ = aerial_robot_msgs::FlightNav::POS_MODE;
+  }
+
+  if (pitch_nav_mode_ == aerial_robot_msgs::FlightNav::VEL_MODE)
+  {
+    if (now <= pitch_nav_reset_time_)
+      setTargetPitch(getTargetRPY().y() + getTargetOmega().y() * loop_du_);
+    else
+    {
+      setTargetOmegaY(0);
+      pitch_nav_mode_ = aerial_robot_msgs::FlightNav::POS_MODE;
+    }
+  }
+  else if (pitch_nav_mode_ == aerial_robot_msgs::FlightNav::POS_VEL_MODE && now > pitch_nav_reset_time_)
+  {
+    setTargetOmegaY(0);
+    pitch_nav_mode_ = aerial_robot_msgs::FlightNav::POS_MODE;
+  }
+
   baselinkRotationProcess();
 }
 
@@ -41,6 +81,10 @@ void GimbalrotorNavigator::reset()
   eq_cog_world_ = false;
   curr_target_baselink_rot_.setRPY(0, 0, 0);
   final_target_baselink_rot_.setRPY(0, 0, 0);
+  roll_nav_mode_ = aerial_robot_msgs::FlightNav::NO_NAVIGATION;
+  pitch_nav_mode_ = aerial_robot_msgs::FlightNav::NO_NAVIGATION;
+  roll_nav_reset_time_ = 0;
+  pitch_nav_reset_time_ = 0;
   KDL::Rotation rot;
   tf::quaternionTFToKDL(curr_target_baselink_rot_, rot);
   robot_model_->setCogDesireOrientation(rot);
@@ -67,11 +111,55 @@ void GimbalrotorNavigator::targetBaselinkRPYCallback(const geometry_msgs::Vector
 
 void GimbalrotorNavigator::naviCallback(const aerial_robot_msgs::FlightNavConstPtr& msg)
 {
+  if (getNaviState() != HOVER_STATE)
+    return;
+
   BaseNavigator::naviCallback(msg);
-  if (msg->roll_nav_mode == 2)
-    setTargetRoll(msg->target_roll);
-  if (msg->pitch_nav_mode == 2)
-    setTargetPitch(msg->target_pitch);
+
+  const double now = ros::Time::now().toSec();
+  switch (msg->roll_nav_mode)
+  {
+    case aerial_robot_msgs::FlightNav::POS_MODE:
+      setTargetRoll(msg->target_roll);
+      setTargetOmegaX(0);
+      roll_nav_mode_ = msg->roll_nav_mode;
+      break;
+    case aerial_robot_msgs::FlightNav::VEL_MODE:
+      setTargetOmegaX(msg->target_omega_x);
+      roll_nav_mode_ = msg->roll_nav_mode;
+      roll_nav_reset_time_ = now + teleop_reset_duration_;
+      break;
+    case aerial_robot_msgs::FlightNav::POS_VEL_MODE:
+      setTargetRoll(msg->target_roll);
+      setTargetOmegaX(msg->target_omega_x);
+      roll_nav_mode_ = msg->roll_nav_mode;
+      roll_nav_reset_time_ = now + trajectory_reset_duration_;
+      break;
+    default:
+      break;
+  }
+
+  switch (msg->pitch_nav_mode)
+  {
+    case aerial_robot_msgs::FlightNav::POS_MODE:
+      setTargetPitch(msg->target_pitch);
+      setTargetOmegaY(0);
+      pitch_nav_mode_ = msg->pitch_nav_mode;
+      break;
+    case aerial_robot_msgs::FlightNav::VEL_MODE:
+      setTargetOmegaY(msg->target_omega_y);
+      pitch_nav_mode_ = msg->pitch_nav_mode;
+      pitch_nav_reset_time_ = now + teleop_reset_duration_;
+      break;
+    case aerial_robot_msgs::FlightNav::POS_VEL_MODE:
+      setTargetPitch(msg->target_pitch);
+      setTargetOmegaY(msg->target_omega_y);
+      pitch_nav_mode_ = msg->pitch_nav_mode;
+      pitch_nav_reset_time_ = now + trajectory_reset_duration_;
+      break;
+    default:
+      break;
+  }
 }
 
 void GimbalrotorNavigator::baselinkRotationProcess()

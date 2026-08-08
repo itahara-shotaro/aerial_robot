@@ -2,3 +2,5 @@ add_rostest(flight_control.test ARGS headless:=true airframe:=bi)
 add_rostest(flight_control.test ARGS headless:=true airframe:=tri)
 add_rostest(flight_control.test ARGS headless:=true airframe:=tri_omni)
 add_rostest(flight_control.test ARGS headless:=true airframe:=quad)
+
+catkin_add_nosetests(test_csv_trajectory_command.py)

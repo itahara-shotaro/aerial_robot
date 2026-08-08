@@ -40,6 +40,10 @@ private:
   tf::Quaternion curr_target_baselink_rot_, final_target_baselink_rot_;
   bool eq_cog_world_;
 
+  /* roll/pitch FlightNav modes and stale-command deadlines */
+  uint8_t roll_nav_mode_, pitch_nav_mode_;
+  double roll_nav_reset_time_, pitch_nav_reset_time_;
+
   /* rosparam */
   double baselink_rot_change_thresh_;
   double baselink_rot_pub_interval_;

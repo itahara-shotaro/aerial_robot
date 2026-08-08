@@ -16,6 +16,9 @@
   <build_depend>aerial_robot_msgs</build_depend>
   <build_depend>spinal</build_depend>
   <build_depend>roscpp</build_depend>
+  <build_depend>rospy</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>std_srvs</build_depend>
   <build_depend>pluginlib</build_depend>
 
   <run_depend>aerial_robot_control</run_depend>
@@ -26,7 +29,13 @@
   <run_depend>aerial_robot_base</run_depend>
   <run_depend>spinal</run_depend>
   <run_depend>roscpp</run_depend>
+  <run_depend>rospy</run_depend>
+  <run_depend>std_msgs</run_depend>
+  <run_depend>std_srvs</run_depend>
   <run_depend>pluginlib</run_depend>
+  <run_depend>python3-numpy</run_depend>
+  <run_depend>python3-rospkg</run_depend>
+  <run_depend>python3-scipy</run_depend>
 
   <test_depend>rostest</test_depend>
 

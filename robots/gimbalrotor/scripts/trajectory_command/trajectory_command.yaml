@@ -1,0 +1,7 @@
+trajectory_file: trajectory/5x20_actual.csv
+publish_frequency: 40.0
+
+include_position: true
+include_attitude: true
+include_linear_velocity: true
+include_angular_velocity: true

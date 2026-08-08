@@ -11,12 +11,15 @@ find_package(catkin REQUIRED COMPONENTS
   spinal
   pluginlib
   roscpp
+  rospy
+  std_msgs
+  std_srvs
   )
 
 find_package(Eigen3 REQUIRED)
 
 catkin_package(
-  CATKIN_DEPENDS aerial_robot_control aerial_robot_estimation aerial_robot_model aerial_robot_msgs pluginlib roscpp spinal
+  CATKIN_DEPENDS aerial_robot_control aerial_robot_estimation aerial_robot_model aerial_robot_msgs pluginlib roscpp rospy spinal std_msgs std_srvs
 )
 
 include_directories(
@@ -36,6 +39,23 @@ target_link_libraries(gimbalrotor_navigation ${catkin_LIBRARIES})
 install(DIRECTORY config plugins launch
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
   USE_SOURCE_PERMISSIONS
+  )
+
+catkin_install_python(
+  PROGRAMS scripts/trajectory_command/csv_trajectory_command.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+  )
+
+install(
+  FILES
+    scripts/trajectory_command/trajectory_command.launch
+    scripts/trajectory_command/trajectory_command.yaml
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/scripts/trajectory_command
+  )
+
+install(
+  DIRECTORY scripts/trajectory_command/trajectory
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/scripts/trajectory_command
   )
 
 if(CATKIN_ENABLE_TESTING)
