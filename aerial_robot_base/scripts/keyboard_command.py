@@ -28,6 +28,12 @@ h:  halt (force stop motor)
      a           s           d           ]
 (move left)  (backward) (move right) (move down)
 
+     @
+(pitch up)
+
+     ;           :           /
+(roll left)  (roll right) (pitch down)
+
 
 Please don't have caps lock on.
 CTRL+c to quit
@@ -73,6 +79,7 @@ if __name__=="__main__":
         xy_vel   = rospy.get_param("xy_vel", 0.2)
         z_vel    = rospy.get_param("z_vel", 0.2)
         yaw_vel  = rospy.get_param("yaw_vel", 0.2)
+        roll_pitch_vel = rospy.get_param("roll_pitch_vel", 0.1)
 
         motion_start_pub = rospy.Publisher('task_start', Empty, queue_size=1)
 
@@ -144,6 +151,26 @@ if __name__=="__main__":
                                 nav_msg.target_vel_z = -z_vel
                                 nav_pub.publish(nav_msg)
                                 msg = "send -z vel command"
+                        if key == '@':
+                                nav_msg.pitch_nav_mode = FlightNav.VEL_MODE
+                                nav_msg.target_omega_y = roll_pitch_vel
+                                nav_pub.publish(nav_msg)
+                                msg = "send +pitch vel command"
+                        if key == '/':
+                                nav_msg.pitch_nav_mode = FlightNav.VEL_MODE
+                                nav_msg.target_omega_y = -roll_pitch_vel
+                                nav_pub.publish(nav_msg)
+                                msg = "send -pitch vel command"
+                        if key == ';':
+                                nav_msg.roll_nav_mode = FlightNav.VEL_MODE
+                                nav_msg.target_omega_x = -roll_pitch_vel
+                                nav_pub.publish(nav_msg)
+                                msg = "send -roll vel command"
+                        if key == ':':
+                                nav_msg.roll_nav_mode = FlightNav.VEL_MODE
+                                nav_msg.target_omega_x = roll_pitch_vel
+                                nav_pub.publish(nav_msg)
+                                msg = "send +roll vel command"
                         if key == '\x03':
                                 break
 
@@ -154,5 +181,3 @@ if __name__=="__main__":
                 print(repr(e))
         finally:
                 termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
-
-
