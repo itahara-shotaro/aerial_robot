@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="robot_ns" default="gimbalrotor" />
+  <arg name="config_file"
+       default="$(find gimbalrotor)/scripts/trajectory_command/trajectory_command.yaml" />
+
+  <group ns="$(arg robot_ns)">
+    <node pkg="gimbalrotor" type="csv_trajectory_command.py"
+          name="trajectory_command" output="screen">
+      <rosparam file="$(arg config_file)" command="load" />
+    </node>
+  </group>
+</launch>

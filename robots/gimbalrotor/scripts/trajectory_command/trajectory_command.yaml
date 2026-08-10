@@ -1,0 +1,10 @@
+trajectory_file: trajectory/dash90_20x20_flightnav.csv
+publish_frequency: 40.0
+odometry_topic: uav/baselink/odom
+odometry_timeout: 0.5
+minimum_altitude: 0.30
+
+include_position: true
+include_attitude: true
+include_linear_velocity: true
+include_angular_velocity: false

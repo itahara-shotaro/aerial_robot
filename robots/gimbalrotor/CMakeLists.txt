@@ -33,6 +33,24 @@ target_link_libraries(gimbalrotor_robot_model ${catkin_LIBRARIES})
 add_library(gimbalrotor_navigation src/gimbalrotor_navigation.cpp)
 target_link_libraries(gimbalrotor_navigation ${catkin_LIBRARIES})
 
+catkin_install_python(
+  PROGRAMS scripts/trajectory_command/csv_trajectory_command.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+install(
+  FILES
+    scripts/trajectory_command/trajectory_command.launch
+    scripts/trajectory_command/trajectory_command.yaml
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/scripts/trajectory_command
+  )
+
+install(
+  DIRECTORY scripts/trajectory_command/trajectory
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/scripts/trajectory_command
+  )
+
+
 install(DIRECTORY config plugins launch
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
   USE_SOURCE_PERMISSIONS
