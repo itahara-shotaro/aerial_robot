@@ -69,7 +69,6 @@ install(DIRECTORY scripts/map_icp/
 
 catkin_install_python(PROGRAMS
   scripts/map_icp/multi_map_icp_alignment.py
-  test/mocap_relative_tf.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
   )
 

@@ -11,6 +11,7 @@ sensor_plugin:
     local_vel_mode: false # the twist/twist/velocity is described in global frame
     time_sync: false
     reset_duration: 0.5
+    unhealth_level: 3
 
     fusion_mode: 2 # ONLY_POS_MODE = 0, ONLY_VEL_MODE = 1, POS_VEL_MODE = 2
     #param_verbose: true
