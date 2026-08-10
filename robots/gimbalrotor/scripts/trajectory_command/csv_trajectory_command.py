@@ -10,6 +10,7 @@ from dataclasses import dataclass
 
 import numpy as np
 import rospkg
+import rosgraph
 import rospy
 from aerial_robot_msgs.msg import FlightNav
 from nav_msgs.msg import Odometry
@@ -271,6 +272,19 @@ class PlaybackStateMachine:
 
 class CsvTrajectoryCommandNode:
     def __init__(self):
+        robot_ns = rospy.get_param("~robot_ns", "")
+        if not robot_ns:
+            master = rosgraph.Master('/rostopic')
+            try:
+                    _, subs, _ = master.getSystemState()
+
+            except socket.error:
+                    raise ROSTopicIOException("Unable to communicate with master!")
+
+            teleop_topics = [topic[0] for topic in subs if 'teleop_command/start' in topic[0]]
+            if len(teleop_topics) == 1:
+                    robot_ns = teleop_topics[0].split('/teleop')[0]
+        
         trajectory_file = rospy.get_param(
             "~trajectory_file", "trajectory/reach_x1.0_flightnav.csv"
         )
@@ -312,14 +326,14 @@ class CsvTrajectoryCommandNode:
         self.latest_odometry_time = None
         self.lock = threading.RLock()
 
-        self.nav_publisher = rospy.Publisher("uav/nav", FlightNav, queue_size=1)
+        self.nav_publisher = rospy.Publisher(robot_ns + "/uav/nav", FlightNav, queue_size=1)
         self.odometry_subscriber = rospy.Subscriber(
-            self.odometry_topic, Odometry, self._odometry_callback, queue_size=1
+            robot_ns + "/" + self.odometry_topic, Odometry, self._odometry_callback, queue_size=1
         )
         self.flight_state_subscriber = rospy.Subscriber(
-            "flight_state", UInt8, self._flight_state_callback, queue_size=1
+            robot_ns + "/flight_state", UInt8, self._flight_state_callback, queue_size=1
         )
-        self.start_service = rospy.Service("~start", Trigger, self._start_callback)
+        self.start_service = rospy.Service(robot_ns + "/start", Trigger, self._start_callback)
         self.publish_timer = rospy.Timer(
             rospy.Duration.from_sec(1.0 / self.publish_frequency), self._publish_callback
         )
