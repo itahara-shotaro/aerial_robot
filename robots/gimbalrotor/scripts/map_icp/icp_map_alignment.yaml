@@ -1,0 +1,69 @@
+# Map-to-map registration configuration for the base-station ICP node.
+#
+# Each initial guess transforms coordinates from the follower map frame into
+# the leader map frame.  The node publishes the same relation as TF:
+#   leader map frame -> follower map frame
+
+leader:
+  topic: /drone1/laser_cloud_map
+
+followers:
+  - name: drone2
+    topic: /drone2/laser_cloud_map
+    initial_guess:
+      translation: [0.0, 0.0, 0.0]
+      # [roll, pitch, yaw] in radians.
+      rotation_rpy: [0.0, 0.0, 0.0]
+
+# When enabled, voxel downsampling is applied to both received maps before
+# registration.  Fast-LIO maps that are already downsampled can set this to
+# false.
+downsample:
+  enabled: false
+  voxel_size: 0.5
+
+registration:
+  max_correspondence_distance: 2.0
+  max_iteration: 50
+  relative_fitness: 1.0e-6
+  relative_rmse: 1.0e-6
+  min_points: 100
+  min_fitness: 0.30
+  max_inlier_rmse: 0.75
+
+  # PointCloud2 subscriber queue size and rate at which the last accepted
+  # transform for each follower is rebroadcast on /tf.  Use a rate materially
+  # higher than the expected map rate (for example, 50 Hz for 10 Hz maps) when
+  # rollout is enabled.
+  subscriber_queue_size: 1
+  tf_publish_rate: 10.0
+
+# The map-frame transform is assumed to be static.  When enabled, an
+# error-state EKF filters successful ICP measurements in spatialmath's true
+# SE(3) twist coordinates [v_x, v_y, v_z, omega_x, omega_y, omega_z].  The
+# translation and rotation keys retain their intuitive names: their entries
+# are respectively the linear-twist (m^2) and angular-twist (rad^2)
+# variances.  Process entries are the corresponding variance rates per
+# second.  The first accepted ICP result initializes the filter state.
+filter:
+  enabled: false
+  type: error_state_ekf
+  initial_covariance:
+    translation: [0.25, 0.25, 0.25]
+    rotation: [0.03, 0.03, 0.03]
+  process_covariance:
+    translation: [1.0e-5, 1.0e-5, 1.0e-5]
+    rotation: [1.0e-6, 1.0e-6, 1.0e-6]
+  measurement_covariance:
+    translation: [0.10, 0.10, 0.10]
+    rotation: [0.01, 0.01, 0.01]
+
+# Smoothly transition from the currently published transform to each filtered
+# target.  A new target restarts the trajectory from the current intermediate
+# pose; targets are not queued.  The duration follows the preceding accepted
+# estimate interval and is clamped to these limits.
+rollout:
+  enabled: false
+  fallback_duration: 0.10
+  minimum_duration: 0.02
+  maximum_duration: 1.00

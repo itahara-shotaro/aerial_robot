@@ -11,12 +11,16 @@ find_package(catkin REQUIRED COMPONENTS
   spinal
   pluginlib
   roscpp
+  rospy
+  sensor_msgs
+  geometry_msgs
+  tf2_ros
   )
 
 find_package(Eigen3 REQUIRED)
 
 catkin_package(
-  CATKIN_DEPENDS aerial_robot_control aerial_robot_estimation aerial_robot_model aerial_robot_msgs pluginlib roscpp spinal
+  CATKIN_DEPENDS aerial_robot_control aerial_robot_estimation aerial_robot_model aerial_robot_msgs geometry_msgs pluginlib roscpp rospy sensor_msgs spinal tf2_ros
 )
 
 include_directories(
@@ -54,6 +58,19 @@ install(
 install(DIRECTORY config plugins launch
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
   USE_SOURCE_PERMISSIONS
+  )
+
+# Keep the map-ICP launch, configuration, and pinned Python requirements
+# together in the installed package as they are in the source tree.
+install(DIRECTORY scripts/map_icp/
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/scripts/map_icp
+  USE_SOURCE_PERMISSIONS
+  )
+
+catkin_install_python(PROGRAMS
+  scripts/map_icp/multi_map_icp_alignment.py
+  test/mocap_relative_tf.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
   )
 
 if(CATKIN_ENABLE_TESTING)
