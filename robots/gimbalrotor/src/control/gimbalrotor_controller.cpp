@@ -8,7 +8,7 @@ namespace aerial_robot_control
     PoseLinearController()
   {
   }
-  :
+
   void GimbalrotorController::initialize(ros::NodeHandle nh, ros::NodeHandle nhp,
                                          boost::shared_ptr<aerial_robot_model::RobotModel> robot_model,
                                          boost::shared_ptr<aerial_robot_estimation::StateEstimator> estimator,
@@ -116,56 +116,9 @@ namespace aerial_robot_control
     pid_msg_.pitch.target_d = target_omega_.y();
     pid_msg_.pitch.err_d = pid_controllers_.at(PITCH).getErrD();
 
-    Eigen::MatrixXd full_q_mat = Eigen::MatrixXd::Zero(6, 3 * motor_num_);
-
-    double mass_inv = 1 / gimbalrotor_robot_model_->getMass();
-
-    Eigen::Matrix3d inertia_inv = inertia.inverse();
-
-    std::vector<Eigen::Vector3d> rotors_origin_from_cog = gimbalrotor_robot_model_->getRotorsOriginFromCog<Eigen::Vector3d>();
-    const auto& rotor_direction = gimbalrotor_robot_model_->getRotorDirection();
-    const double m_f_rate = gimbalrotor_robot_model_->getMFRate();
-
-    Eigen::MatrixXd wrench_map = Eigen::MatrixXd::Zero(6, 3);
-    wrench_map.block(0, 0, 3, 3) =  Eigen::MatrixXd::Identity(3, 3);
+    /* allocation from the gimbal-reachable virtual inputs to the CoG wrench (acceleration units) */
+    Eigen::MatrixXd integrated_map = gimbalrotor_robot_model_->calcMaskedWrenchMatrixOnCoG(gimbal_dof_);
     int last_col = 0;
-
-    /* calculate normal allocation */
-    for(int i = 0; i < motor_num_; i++){
-      wrench_map.block(3, 0, 3, 3) = aerial_robot_model::skew(rotors_origin_from_cog.at(i)) + rotor_direction.at(i + 1) * m_f_rate * Eigen::Matrix3d::Identity();
-      full_q_mat.middleCols(last_col, 3) = wrench_map;
-      last_col += 3;
-    }
-
-    full_q_mat.topRows(3) = mass_inv * full_q_mat.topRows(3);
-    full_q_mat.bottomRows(3) = inertia_inv * full_q_mat.bottomRows(3);
-
-    /* calculate masked rotation matrix */
-    std::vector<KDL::Rotation> thrust_coords_rot = gimbalrotor_robot_model_->getThrustCoordRot<KDL::Rotation>();
-    std::vector<Eigen::MatrixXd> masked_rot;
-    for(int i = 0; i < motor_num_; i++){
-      tf::Quaternion r;  tf::quaternionKDLToTF(thrust_coords_rot.at(i), r);
-      Eigen::Matrix3d conv_cog_from_thrust; tf::matrixTFToEigen(tf::Matrix3x3(r),conv_cog_from_thrust);
-      if(gimbal_dof_ == 1)
-        {
-          Eigen::MatrixXd mask(3, 2);
-          mask << 0, 0, 1, 0, 0, 1;
-          masked_rot.push_back(conv_cog_from_thrust * mask);
-        }
-      else if(gimbal_dof_ == 2)
-        {
-          Eigen::MatrixXd mask = Eigen::Matrix3d::Identity();
-          masked_rot.push_back(conv_cog_from_thrust * mask);
-        }
-    }
-
-    /* mask integrated allocation */
-    Eigen::MatrixXd integrated_rot = Eigen::MatrixXd::Zero(3 * motor_num_, rotor_coef_ * motor_num_);
-    Eigen::MatrixXd integrated_map = Eigen::MatrixXd::Zero(6, (gimbal_dof_ + 1) * motor_num_);
-    for(int i = 0; i< motor_num_; i++){
-      integrated_rot.block(3*i, rotor_coef_*i, 3, rotor_coef_) = masked_rot[i];
-    }
-    integrated_map = full_q_mat * integrated_rot;
 
     /* extract controlled axis  */
     if(underactuate_)

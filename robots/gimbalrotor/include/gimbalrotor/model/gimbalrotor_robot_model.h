@@ -17,6 +17,12 @@ public:
   template <class T> std::vector<T> getLinksRotationFromCog();
   template <class T> std::vector<T> getThrustCoordRot();
 
+  /* Wrench (in acceleration units) per virtual rotor input, expressed in the CoG frame.
+     Each rotor contributes (gimbal_dof + 1) inputs: the thrust vector is masked down to the
+     subspace its gimbal can actually reach (the arm's y-z plane for a 1-DoF gimbal).
+     Returns a 6 x (gimbal_dof + 1) * rotor_num matrix. */
+  Eigen::MatrixXd calcMaskedWrenchMatrixOnCoG(int gimbal_dof);
+
 private:
   void updateRobotModelImpl(const KDL::JntArray& joint_positions) override;
 

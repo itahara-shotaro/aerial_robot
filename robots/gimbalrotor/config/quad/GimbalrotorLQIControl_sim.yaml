@@ -1,0 +1,86 @@
+aerial_robot_control_name: aerial_robot_control/gimbalrotor_lqi_controller
+
+controller:
+  gimbal_dof: 1
+  # the LQI controller always lets the flight controller resolve the gimbal angles: the PC never sees
+  # spinal's roll/pitch thrust term, so it cannot reconstruct the total force direction itself
+  gimbal_calc_in_fc: true
+  # cap on the gimbal deflection this controller will request [rad]
+  max_gimbal_angle: 0.6
+
+  # outer loop: position. Allocated in the null space of z/roll/pitch/yaw, so raising these gains does
+  # not eat into the attitude loop's authority.
+  xy:
+    p_gain: 5.0
+    i_gain: 0.05
+    d_gain: 4.0
+    limit_sum: 4.0
+    limit_p: 12.0
+    limit_i: 12.0
+    limit_d: 12.0
+
+  # z errors feed the per-input LQI z gains; limit_sum clamps each rotor's thrust magnitude
+  z:
+    limit_err_p: 1.0
+    limit_sum: 8.0 # N, clamps each rotor's thrust magnitude (max_thrust is ~13 N)
+    limit_p: 25.0
+    limit_i: 25.0
+    limit_d: 25.0
+    force_landing_descending_rate: -0.5
+
+  # unused by this controller (spinal runs the attitude loop with the LQI gains), but
+  # PoseLinearController still constructs these PID objects
+  roll_pitch:
+    p_gain: 0.0
+    i_gain: 0.0
+    d_gain: 0.0
+    limit_sum: 20.0
+    limit_p: 20.0
+    limit_i: 20.0
+    limit_d: 20.0
+
+    start_rp_integration_height: 0.01
+
+  # yaw errors feed the per-input LQI yaw gains; only the scale is sent to spinal
+  yaw:
+    limit_err_p: 0.4
+    # NOTE: unlike the PID controller, this clamps the per-input yaw force in newtons. It has to stay
+    # commensurate with the ~2.4 N hover thrust, or the yaw term alone swings the gimbals to their stops.
+    limit_sum: 2.0
+    limit_p: 2.0
+    limit_i: 2.0
+    limit_d: 2.0
+
+    need_d_control: true
+
+  lqi:
+    # A commanded baselink rotation redefines the CoG frame, so the plant changes as it slews and the
+    # gains have to follow. The navigator caps the slew at baselink_rot_change_thresh per
+    # baselink_rot_pub_interval (0.02 rad / 0.1 s by default); do not drop this below ~10 Hz.
+    gain_generate_rate: 15.0
+    realtime_update: true
+    clamp_gain: true
+    gyro_moment_compensation: false
+
+    # Q weights. NOTE: starting values, tune in simulation before flying.
+    roll_pitch_p: 100.0
+    roll_pitch_i: 1.0
+    roll_pitch_d: 10.0
+
+    yaw_p: 100.0
+    yaw_i: 1.0
+    yaw_d: 10.0
+
+    z_p: 20.0
+    z_i: 10.0
+    z_d: 20.0
+
+    # R weights, per virtual input. The lateral (gimbal-driven) inputs are penalised harder than the
+    # thrust inputs so the LQ solution does not put attitude bandwidth on the servos, which are far
+    # slower than the rotors. Lower r_lateral to shift effort onto the gimbals.
+    r_thrust: 1.0
+    r_lateral: 10.0
+
+    # below this the allocation is treated as degenerate: gains stop being regenerated and the x/y
+    # contribution is suspended
+    allocation_det_thresh: 1.0e-3
