@@ -21,6 +21,8 @@
   <arg name="robot_id" default="1" />
   <arg name="robot_ns" value="gimbalrotor$(arg robot_id)" />
   <arg name="airframe" default="ynltilt" />
+  <!-- Basename of the control config in the airframe config directory. -->
+  <arg name="control_config" default="GimbalrotorControl" />
 
   ###########  Parameters  ###########
   <group ns="$(arg robot_ns)">
@@ -45,8 +47,8 @@
    <rosparam file="$(arg config_dir)/Battery.yaml" command="load" />
 
    ###########  Control  ###########
-   <rosparam file="$(arg config_dir)/$(arg airframe)/GimbalrotorControl.yaml" command="load" unless="$(arg simulation)"/>
-   <rosparam file="$(arg config_dir)/$(arg airframe)/GimbalrotorControl_sim.yaml" command="load" if="$(arg simulation)"/>
+   <rosparam file="$(arg config_dir)/$(arg airframe)/$(arg control_config).yaml" command="load" unless="$(arg simulation)"/>
+   <rosparam file="$(arg config_dir)/$(arg airframe)/$(arg control_config)_sim.yaml" command="load" if="$(arg simulation)"/>
 
    ###########  Sensor Fusion  ###########
    <rosparam file="$(arg config_dir)/StateEstimation.yaml" command="load" />
