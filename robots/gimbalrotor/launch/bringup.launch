@@ -65,13 +65,6 @@
     <param name="main_rate" value="40"/>
   </node>
 
-  ###########  Pruning Servo by Kamada ###########
-  <node pkg="aerial_robot_base" 
-        type="prune_servo_listener.py" 
-        name="dynamixel_controller" 
-        output="screen">
-  </node>
-
   ###########  Robot Model  ###########
   <arg name="description_mode" value="urdf" unless="$(arg simulation)" />
   <arg name="description_mode" value="gazebo" if="$(arg simulation)" />
@@ -106,5 +99,9 @@
     <arg name="spawn_z" value="$(arg spawn_z)" />
     <arg name="spawn_yaw" value="$(arg spawn_yaw)" />
   </include>
+
+  <group if="$(eval arg('simulation') and not arg('real_machine'))">
+    <node pkg="aerial_robot_base" type="gazebo_killer.py" name="gazebo_killer"/>
+  </group>
 
 </launch>
