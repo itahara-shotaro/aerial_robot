@@ -223,7 +223,7 @@
       <limit effort="100.0" lower="${min_force}" upper="${max_force}" velocity="0.5"/>
       <parent link="rotor_parent${self}"/>
       <child link="thrust${self}"/>
-      <origin rpy="0 0 0" xyz="0.0 0.0 0.020"/> <!-- motor base -> propeller disc -->
+      <origin rpy="0 0 0" xyz="0.0 0.0 0.0425"/> <!-- motor base -> propeller disc -->
       <axis xyz="0 0 ${rotor_direction}"/>
     </joint>
 
