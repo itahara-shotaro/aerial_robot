@@ -56,21 +56,22 @@ ExternalProject_Add_Step(acados tera_renderer
 #)
 #
 #
-## add path to acados to .bashrc
-#execute_process(
-#        COMMAND grep -q "ACADOS_SOURCE_DIR" $ENV{HOME}/.bashrc
-#        RESULT_VARIABLE result_bashrc
-#)
-#if(${result_bashrc})
-#    ExternalProject_Add_Step(acados export_paths
-#            COMMAND echo "" >> $ENV{HOME}/.bashrc
-#            COMMAND echo "# >>>>> Automatically adding ACADOS_SOURCE_DIR to .bashrc" >> $ENV{HOME}/.bashrc
-#            COMMAND echo "export ACADOS_SOURCE_DIR=<INSTALL_DIR>/src/acados" >> $ENV{HOME}/.bashrc
-#            COMMAND echo "" >> $ENV{HOME}/.bashrc
-#            DEPENDEES pip_install
-#    )
-#    message("ACADOS_SOURCE_DIR not found in .bashrc, automatically adding it.")
-#endif()
+## add path to acados to .bashrc if not already present
+execute_process(
+        COMMAND grep -q "ACADOS_SOURCE_DIR" $ENV{HOME}/.bashrc
+        RESULT_VARIABLE result_bashrc
+)
+if(${result_bashrc} EQUAL 1)
+   ExternalProject_Add_Step(acados export_paths
+           COMMAND echo "" >> $ENV{HOME}/.bashrc
+           COMMAND echo "# >>>>> Automatically adding ACADOS_SOURCE_DIR to .bashrc" >> $ENV{HOME}/.bashrc
+           COMMAND echo "export ACADOS_SOURCE_DIR=<INSTALL_DIR>/src/acados" >> $ENV{HOME}/.bashrc
+           COMMAND echo "" >> $ENV{HOME}/.bashrc
+           DEPENDEES tera_renderer
+   )
+   message("ACADOS_SOURCE_DIR not found in .bashrc, automatically adding it.")
+   
+endif()
 #
 ## add path to acados to .zshrc
 #execute_process(
