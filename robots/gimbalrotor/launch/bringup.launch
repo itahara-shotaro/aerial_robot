@@ -21,6 +21,8 @@
   <arg name="robot_id" default="1" />
   <arg name="robot_ns" value="gimbalrotor$(arg robot_id)" />
   <arg name="airframe" default="ynltilt" />
+  # GimbalrotorControl.yaml / GimbalrotorControl_sim.yaml (PID), FlightControlNMPC.yaml (NMPC)
+  <arg name="control_config_file" default="$(eval 'GimbalrotorControl_sim.yaml' if arg('simulation') else 'GimbalrotorControl.yaml')" />
 
   ###########  Parameters  ###########
   <group ns="$(arg robot_ns)">
@@ -45,8 +47,7 @@
    <rosparam file="$(arg config_dir)/Battery.yaml" command="load" />
 
    ###########  Control  ###########
-   <rosparam file="$(arg config_dir)/$(arg airframe)/GimbalrotorControl.yaml" command="load" unless="$(arg simulation)"/>
-   <rosparam file="$(arg config_dir)/$(arg airframe)/GimbalrotorControl_sim.yaml" command="load" if="$(arg simulation)"/>
+   <rosparam file="$(arg config_dir)/$(arg airframe)/$(arg control_config_file)" command="load"/>
 
    ###########  Sensor Fusion  ###########
    <rosparam file="$(arg config_dir)/StateEstimation.yaml" command="load" />
@@ -62,7 +63,7 @@
   <node pkg="aerial_robot_base" type="aerial_robot_base_node" name="aerial_robot_base_node" ns="$(arg robot_ns)" output="screen" >
     <param name="tf_prefix" value="$(arg robot_ns)"/>
     <param name="param_verbose" value="false"/>
-    <param name="main_rate" value="40"/>
+    <param name="main_rate" value="100"/>
   </node>
 
   ###########  Robot Model  ###########

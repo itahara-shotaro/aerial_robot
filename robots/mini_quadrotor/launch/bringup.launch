@@ -19,6 +19,8 @@
   <arg name="robot_id" default="" />
   <arg name="robot_ns" value="quadrotor$(arg robot_id)" />
   <arg name="config_dir" default="$(find mini_quadrotor)/config" />
+  # FlightControl.yaml (LQI), FlightControlNMPCFullModel.yaml or FlightControlNMPCBodyRate.yaml (NMPC)
+  <arg name="control_config_file" default="FlightControl.yaml" />
   <arg name="mujoco" default="False" />
   <arg name="demo" default="True" />
 
@@ -42,7 +44,7 @@
     <rosparam file="$(arg config_dir)/Battery.yaml" command="load" />
 
     ###########  Control  ###########
-    <rosparam file="$(arg config_dir)/FlightControl.yaml" command="load" />
+    <rosparam file="$(arg config_dir)/$(arg control_config_file)" command="load" />
 
     ###########  Sensor Fusion  ###########
     <rosparam file="$(arg config_dir)/StateEstimation.yaml" command="load" />

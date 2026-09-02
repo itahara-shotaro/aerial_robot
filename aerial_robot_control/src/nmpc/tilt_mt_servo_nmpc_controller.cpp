@@ -436,6 +436,18 @@ std::vector<double> nmpc::TiltMtServoNMPC::PhysToNMPCParams() const
     std::copy(contact_frame_q.begin(), contact_frame_q.end(), phys_p.begin() + idx);
     idx += static_cast<int>(contact_frame_q.size());
   }
+  else
+  {
+    // prepareNMPCParams() calls this every control cycle, so warn only once.
+    ROS_WARN_ONCE("No contact frame found in the robot model. Setting ee_p to zero and ee_qwxyz to identity.");
+    phys_p[idx] = 0.0;  // ee_p_x
+    phys_p[idx + 1] = 0.0;  // ee_p_y
+    phys_p[idx + 2] = 0.0;  // ee_p_z
+    phys_p[idx + 3] = 1.0;  // ee_q_w
+    phys_p[idx + 4] = 0.0;  // ee_q_x
+    phys_p[idx + 5] = 0.0;  // ee_q_y
+    phys_p[idx + 6] = 0.0;  // ee_q_z
+  }
 
   return phys_p;
 }

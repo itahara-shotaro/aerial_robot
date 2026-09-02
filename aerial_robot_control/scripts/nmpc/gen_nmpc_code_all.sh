@@ -9,8 +9,8 @@ MODELS=(
    NMPCFixQdAngvelOut
    NMPCFixQdThrustOut
 #    NMPCTiltQdNoServo
-#    NMPCTiltQdServo
-#    NMPCTiltQdServoDist
+   NMPCTiltQdServo
+   NMPCTiltQdServoDist
 #    NMPCTiltQdServoImpedance
 #    NMPCTiltQdServoThrustDist
 #    NMPCTiltQdServoThrustImpedance
