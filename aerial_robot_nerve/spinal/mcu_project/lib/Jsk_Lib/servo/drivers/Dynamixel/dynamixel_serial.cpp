@@ -226,10 +226,11 @@ void DynamixelSerial::setRoundOffset(uint8_t servo_index, int32_t ref_value)
   ServoData& s = servo_[servo_index];
   if (s.torque_enable_) return; // cannot process if torque is enable
 
-  // workaround to update the internal offset for pulley type in the case that has round gap
-  int32_t diff = ref_value - s.present_position_;
-  if (diff > 2047) s.internal_offset_ += 4096;
-  if (diff < -2047) s.internal_offset_ -= 4096;
+  constexpr int32_t ticks_per_round = 4096;
+  int32_t raw_position = s.present_position_ - s.internal_offset_;
+  int32_t round_offset = static_cast<int32_t>(std::lround(static_cast<double>(ref_value - raw_position) / ticks_per_round)) * ticks_per_round;
+  s.internal_offset_ = round_offset;
+  s.setPresentPosition(raw_position);
 }
 
 void DynamixelSerial::setHomingOffset(uint8_t servo_index)
@@ -255,7 +256,7 @@ void DynamixelSerial::setHomingOffset(uint8_t servo_index)
     readStatusPacket(INST_GET_HOMING_OFFSET);
 
     // read updated position
-    cmdReadPresentPosition(servo_index);
+    cmdReadPresentVelPos(servo_index);
     readStatusPacket(INST_GET_PRESENT_POS);
 
     // set new homing offset
@@ -265,7 +266,7 @@ void DynamixelSerial::setHomingOffset(uint8_t servo_index)
     readStatusPacket(INST_GET_HOMING_OFFSET);
 
     // read updated position
-    cmdReadPresentPosition(servo_index);
+    cmdReadPresentVelPos(servo_index);
     readStatusPacket(INST_GET_PRESENT_POS);
 
     if (mutex_ != NULL) osMutexRelease(*mutex_);
@@ -461,7 +462,7 @@ void DynamixelSerial::update()
         switch (instruction.first) {
         case INST_GET_PRESENT_POS: /* read servo position(angle) */
           if(!servo_[servo_index].send_data_flag_ && !servo_[servo_index].first_get_pos_flag_) break;
-          cmdReadPresentPosition(servo_index);
+          cmdReadPresentVelPos(servo_index);
           readStatusPacket(instruction.first);
           break;
         case INST_GET_PRESENT_CURRENT: /* read servo load */
@@ -514,7 +515,7 @@ void DynamixelSerial::update()
       } else {
         switch (instruction.first) {
         case INST_GET_PRESENT_POS: /* read servo position(angle) */
-          cmdSyncReadPresentPosition(false);
+          cmdSyncReadPresentVelPos(false);
           read_status_packet_flag_ = true;
           break;
         case INST_GET_PRESENT_CURRENT: /* read servo load */
@@ -629,14 +630,14 @@ int8_t DynamixelSerial::readStatusPacket(uint8_t status_packet_instruction)
 	uint8_t rx_data;
 	int header_match_count = 0;
 	uint16_t parameter_len = 0;
-	uint8_t parameters[STATUS_PACKET_SIZE];
+  uint8_t parameters[STATUS_PACKET_SIZE] = {0};
 	int parameter_index = 0;
 	int parameter_loop_count = 0;
 	uint16_t checksum = 0;
-	uint8_t receive_data[STATUS_PACKET_SIZE];
+  uint8_t receive_data[STATUS_PACKET_SIZE] = {0};
 	bool read_end_flag = false;
 	int loop_count = 0;
-	uint8_t servo_id;
+  uint8_t servo_id = 0;
 
         if(direct_ttl_mode_) {
           while (__HAL_UART_GET_FLAG(huart_, UART_FLAG_TC) == RESET) {}
@@ -769,8 +770,11 @@ int8_t DynamixelSerial::readStatusPacket(uint8_t status_packet_instruction)
 	    return 0;
 	case INST_GET_PRESENT_POS:
 	{
-		int32_t present_position = ((parameters[3] << 24) & 0xFF000000) | ((parameters[2] << 16) & 0xFF0000) | ((parameters[1] << 8) & 0xFF00) | (parameters[0] & 0xFF);
+    int32_t present_velocity = ((parameters[3] << 24) & 0xFF000000) | ((parameters[2] << 16) & 0xFF0000) | ((parameters[1] << 8) & 0xFF00) | (parameters[0] & 0xFF);
+    int32_t present_position = ((parameters[7] << 24) & 0xFF000000) | ((parameters[6] << 16) & 0xFF0000) | ((parameters[5] << 8) & 0xFF00) | (parameters[4] & 0xFF);
 		if (s != servo_.end()) {
+        constexpr int32_t present_position_glitch_threshold = 2048;
+        s->present_velocity_ = present_velocity;
                   s->hardware_error_status_ &= ((1 << ENCODER_CONNECT_ERROR) - 1); // &= 0b01111111
                   if(s->external_encoder_flag_) {
 #ifndef SPINAL
@@ -793,11 +797,20 @@ int8_t DynamixelSerial::readStatusPacket(uint8_t status_packet_instruction)
 #endif
                   }
                   else {
+                    bool position_valid = true;
                     if (s->first_get_pos_flag_) {
                       s->internal_offset_ = std::floor(present_position / 4096.0) * -4096; // to convert [0, 4096]
                       s->first_get_pos_flag_ = false;
                     }
-                    s->setPresentPosition(present_position);
+                    else {
+                      int32_t candidate_position = present_position + s->internal_offset_;
+                      int32_t position_diff = candidate_position - s->present_position_;
+                      position_valid = ((candidate_position & 0xFFFF) != 0xFDFD && position_diff <= present_position_glitch_threshold && position_diff >= -present_position_glitch_threshold);
+                    }
+
+                    if (position_valid) {
+                      s->setPresentPosition(present_position);
+                    }
                   }
 		}
                 return 0;
@@ -944,9 +957,11 @@ void DynamixelSerial::cmdReadPresentCurrent(uint8_t servo_index)
 	cmdRead(servo_[servo_index].id_, CTRL_PRESENT_CURRENT, PRESENT_CURRENT_BYTE_LEN);
 }
 
-void DynamixelSerial::cmdReadPresentPosition(uint8_t servo_index)
+void DynamixelSerial::cmdReadPresentVelPos(uint8_t servo_index)
 {
-	cmdRead(servo_[servo_index].id_, CTRL_PRESENT_POSITION, PRESENT_POSITION_BYTE_LEN);
+  // Read 8 bytes from addr 128 (CTRL_PRESENT_VELOCITY) to get both
+  // Present Velocity (addr 128, 4 bytes) and Present Position (addr 132, 4 bytes) in one request.
+  cmdRead(servo_[servo_index].id_, CTRL_PRESENT_VELOCITY, PRESENT_VEL_POS_BYTE_LEN);
 }
 
 void DynamixelSerial::cmdReadPresentTemperature(uint8_t servo_index)
@@ -1048,9 +1063,11 @@ void DynamixelSerial::cmdSyncReadPresentCurrent(bool send_all)
 	cmdSyncRead(CTRL_PRESENT_CURRENT, PRESENT_CURRENT_BYTE_LEN, send_all);
 }
 
-void DynamixelSerial::cmdSyncReadPresentPosition(bool send_all)
+void DynamixelSerial::cmdSyncReadPresentVelPos(bool send_all)
 {
-	cmdSyncRead(CTRL_PRESENT_POSITION, PRESENT_POSITION_BYTE_LEN, send_all);
+  // Read 8 bytes from addr 128 (CTRL_PRESENT_VELOCITY) to get both
+  // Present Velocity (addr 128, 4 bytes) and Present Position (addr 132, 4 bytes) in one request.
+  cmdSyncRead(CTRL_PRESENT_VELOCITY, PRESENT_VEL_POS_BYTE_LEN, send_all);
 }
 
 void DynamixelSerial::cmdSyncReadPresentTemperature(bool send_all)
