@@ -174,6 +174,9 @@ namespace aerial_robot_model {
     /* contact point */
     bool hasFrame(const std::string& frame_name) const
     {
+      // seg_tf_map_ is wholesale-reassigned by setSegmentsTf() from the model-update
+      // thread, so this read must take the same lock as getSegmentsTf().
+      std::lock_guard<std::mutex> lock(mutex_seg_tf_);
       return seg_tf_map_.find(frame_name) != seg_tf_map_.end();
     }
 
@@ -250,7 +253,7 @@ namespace aerial_robot_model {
     std::mutex mutex_inertia_;
     std::mutex mutex_rotor_origin_;
     std::mutex mutex_rotor_normal_;
-    std::mutex mutex_seg_tf_;
+    mutable std::mutex mutex_seg_tf_;
     std::mutex mutex_desired_baselink_rot_;
 
 
@@ -276,7 +279,12 @@ namespace aerial_robot_model {
   // URDF.
   KDL::Frame updateCoGtoFrame(const std::string& frame_name) const
   {
-    KDL::Frame target_frame = seg_tf_map_.at(frame_name);
+    // Same race as hasFrame(): lock before touching seg_tf_map_.
+    KDL::Frame target_frame;
+    {
+      std::lock_guard<std::mutex> lock(mutex_seg_tf_);
+      target_frame = seg_tf_map_.at(frame_name);
+    }
     return cog_.Inverse() * target_frame;
   }
 
