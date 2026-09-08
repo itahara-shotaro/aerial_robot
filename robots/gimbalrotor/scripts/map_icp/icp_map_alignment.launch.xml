@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- This launch file is intended to be started once on the base station. -->
+  <arg name="config_file"
+       default="$(find gimbalrotor)/scripts/map_icp/icp_map_alignment.yaml" />
+
+  <node pkg="gimbalrotor" type="multi_map_icp_alignment.py"
+        name="multi_map_icp_alignment" output="screen">
+    <rosparam command="load" file="$(arg config_file)" />
+  </node>
+</launch>
