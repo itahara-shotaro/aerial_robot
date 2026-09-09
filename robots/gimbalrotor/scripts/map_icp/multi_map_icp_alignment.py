@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
-"""Align follower Fast-LIO maps to a leader map with point-to-point ICP."""
+"""Align follower Fast-LIO maps to a leader map with ICP.
+
+Registration anneals over a coarse-to-fine schedule of correspondence distances,
+using either a point-to-point or a point-to-plane metric.  Each registration
+yields the transform between the two map frames.  That
+relation is composed with the static world-to-map offset of each robot and
+published as the transform between the two world frames, which is the single
+TF edge that joins the otherwise disjoint per-robot trees.
+"""
 
 import threading
 
@@ -17,9 +25,33 @@ except ImportError:
 
 try:
     from spatialmath import SE3
-    from spatialmath.base import r2q, trexp, trinterp, trlog
+    from spatialmath.base import q2r, r2q, trexp, trinterp, trlog
 except ImportError:
     SE3 = None
+
+# The world-to-map offsets are static and latched, so this only has to cover
+# the interval between this node starting and each robot anchoring its map.
+TF_LOOKUP_TIMEOUT = 0.5
+
+
+def _as_frame_name(value, field_name):
+    """Return a non-empty frame name without its leading slash or raise ValueError."""
+    name = str(value or '').lstrip('/')
+    if not name:
+        raise ValueError("{} must be a non-empty frame name".format(field_name))
+    return name
+
+
+def _as_correspondence_schedule(value, field_name):
+    """Return the ICP correspondence distances as a coarse-to-fine list of floats."""
+    if not isinstance(value, (list, tuple)) or not value:
+        raise ValueError("{} must be a non-empty list of distances".format(field_name))
+    schedule = np.asarray(value, dtype=np.float64)
+    if not np.all(np.isfinite(schedule)) or np.any(schedule <= 0.0):
+        raise ValueError("{} must contain finite positive distances".format(field_name))
+    if np.any(np.diff(schedule) > 0.0):
+        raise ValueError("{} must be ordered coarse to fine".format(field_name))
+    return [float(distance) for distance in schedule]
 
 
 def _as_vector(value, field_name):
@@ -134,6 +166,10 @@ class MultiMapIcpAlignment(object):
         self._accepted_transforms = {}
         self._followers = self._read_parameters()
         self._tf_broadcaster = tf2_ros.TransformBroadcaster()
+        # Started before the map subscribers so that the world-to-map offsets
+        # are already cached once the first registration completes.
+        self._tf_buffer = tf2_ros.Buffer()
+        self._tf_listener = tf2_ros.TransformListener(self._tf_buffer)
 
         self._leader_subscriber = rospy.Subscriber(
             self._leader_topic, PointCloud2, self._leader_callback,
@@ -146,15 +182,21 @@ class MultiMapIcpAlignment(object):
         self._tf_timer = rospy.Timer(
             rospy.Duration(1.0 / self._tf_publish_rate), self._publish_timer_callback)
         rospy.loginfo(
-            "multi_map_icp_alignment: leader=%s, followers=%s, downsample=%s, filter=%s, rollout=%s",
-            self._leader_topic, ', '.join(self._followers.keys()), self._downsample_enabled,
-            self._filter_enabled, self._rollout_enabled)
+            "multi_map_icp_alignment: leader=%s (world %s), followers=%s, method=%s, "
+            "correspondence schedule=%s, downsample=%s, filter=%s, rollout=%s",
+            self._leader_topic, self._leader_world_frame,
+            ', '.join("{} (world {})".format(follower['name'], follower['world_frame'])
+                      for follower in self._followers.values()),
+            self._estimation_method, self._correspondence_schedule,
+            self._downsample_enabled, self._filter_enabled, self._rollout_enabled)
 
     def _read_parameters(self):
         leader = rospy.get_param('~leader')
         if not isinstance(leader, dict) or not leader.get('topic'):
             raise ValueError("~leader.topic must be a non-empty topic name")
         self._leader_topic = str(leader['topic'])
+        self._leader_world_frame = _as_frame_name(leader.get('world_frame_name'),
+                                                  "~leader.world_frame_name")
 
         downsample = rospy.get_param('~downsample')
         self._downsample_enabled = bool(downsample.get('enabled', False))
@@ -163,7 +205,15 @@ class MultiMapIcpAlignment(object):
             raise ValueError("~downsample.voxel_size must be positive when downsampling is enabled")
 
         registration = rospy.get_param('~registration')
-        self._max_correspondence_distance = float(registration['max_correspondence_distance'])
+        self._correspondence_schedule = _as_correspondence_schedule(
+            registration['correspondence_schedule'], 'registration.correspondence_schedule')
+        self._estimation_method = str(registration.get('estimation_method', 'point_to_point'))
+        if self._estimation_method not in ('point_to_point', 'point_to_plane'):
+            raise ValueError("registration.estimation_method must be point_to_point or "
+                             "point_to_plane, not {}".format(self._estimation_method))
+        self._normal_radius = float(registration.get('normal_radius', 0.0))
+        if self._estimation_method == 'point_to_plane' and self._normal_radius <= 0.0:
+            raise ValueError("registration.normal_radius must be positive for point_to_plane")
         self._max_iteration = int(registration['max_iteration'])
         self._relative_fitness = float(registration['relative_fitness'])
         self._relative_rmse = float(registration['relative_rmse'])
@@ -172,7 +222,7 @@ class MultiMapIcpAlignment(object):
         self._max_inlier_rmse = float(registration['max_inlier_rmse'])
         self._subscriber_queue_size = int(registration.get('subscriber_queue_size', 1))
         self._tf_publish_rate = float(registration.get('tf_publish_rate', 10.0))
-        if (self._max_correspondence_distance <= 0.0 or self._max_iteration <= 0 or
+        if (self._max_iteration <= 0 or
                 self._min_points < 3 or self._subscriber_queue_size <= 0 or
                 self._tf_publish_rate <= 0.0 or self._min_fitness < 0.0 or
                 self._max_inlier_rmse <= 0.0):
@@ -206,6 +256,7 @@ class MultiMapIcpAlignment(object):
         if not isinstance(configured_followers, list) or not configured_followers:
             raise ValueError("~followers must contain at least one follower")
         followers = {}
+        world_frames = set()
         for configured in configured_followers:
             if not isinstance(configured, dict):
                 raise ValueError("each follower must be a mapping")
@@ -215,6 +266,18 @@ class MultiMapIcpAlignment(object):
                 raise ValueError("each follower requires non-empty name and topic")
             if name in followers:
                 raise ValueError("follower names must be unique: {}".format(name))
+            world_frame = _as_frame_name(configured.get('world_frame_name'),
+                                         "world_frame_name for {}".format(name))
+            # A follower sharing the leader's world frame is the unnamespaced
+            # setup this node exists to bridge: the edge would be a self loop,
+            # and each robot's map frame would end up with two parents.
+            if world_frame == self._leader_world_frame:
+                raise ValueError(
+                    "follower {} must not reuse the leader world frame '{}'; give each "
+                    "robot its own global_frame".format(name, world_frame))
+            if world_frame in world_frames:
+                raise ValueError("follower world frames must be unique: {}".format(world_frame))
+            world_frames.add(world_frame)
             guess = configured.get('initial_guess', {})
             translation = _as_vector(guess.get('translation'),
                                      "initial_guess.translation for {}".format(name))
@@ -224,6 +287,7 @@ class MultiMapIcpAlignment(object):
             followers[name] = {
                 'name': name,
                 'topic': topic,
+                'world_frame': world_frame,
                 'initial_transform': initial_transform,
                 'registration_lock': threading.Lock(),
                 'filter': StaticTransformEstimator(
@@ -249,6 +313,25 @@ class MultiMapIcpAlignment(object):
     @staticmethod
     def _frame_id(message):
         return message.header.frame_id.lstrip('/')
+
+    @staticmethod
+    def _se3_from_transform(transform):
+        """Convert a geometry_msgs/Transform into an SE3 object."""
+        rotation = transform.rotation
+        quaternion = [rotation.w, rotation.x, rotation.y, rotation.z]  # spatialmath order
+        translation = [transform.translation.x, transform.translation.y, transform.translation.z]
+        return SE3.Rt(q2r(quaternion, order='sxyz'), translation)
+
+    def _world_to_map_transform(self, world_frame, map_frame, source_name):
+        """Return the static offset from a robot's world frame to its map frame."""
+        try:
+            stamped = self._tf_buffer.lookup_transform(
+                world_frame, map_frame, rospy.Time(0), rospy.Duration(TF_LOOKUP_TIMEOUT))
+        except tf2_ros.TransformException as error:
+            rospy.logwarn_throttle(5.0, "no TF from %s to %s for %s: %s",
+                                   world_frame, map_frame, source_name, error)
+            return None
+        return self._se3_from_transform(stamped.transform)
 
     def _points_from_message(self, message, source_name):
         try:
@@ -277,9 +360,37 @@ class MultiMapIcpAlignment(object):
             rospy.logwarn_throttle(5.0, "leader map has an empty header.frame_id")
             return
         points = self._points_from_message(message, 'leader map')
-        if points is not None:
-            with self._lock:
-                self._leader_map = {'points': points, 'frame_id': frame_id}
+        if points is None:
+            return
+        # The registration target is built here, once per leader map, and is only ever
+        # read afterwards: follower callbacks share it without copying.
+        cloud = o3d.geometry.PointCloud()
+        cloud.points = o3d.utility.Vector3dVector(points)
+        if self._estimation_method == 'point_to_plane':
+            cloud.estimate_normals(o3d.geometry.KDTreeSearchParamHybrid(
+                radius=self._normal_radius, max_nn=30))
+        with self._lock:
+            self._leader_map = {'cloud': cloud, 'frame_id': frame_id}
+
+    def _register(self, source, target, initial_transform):
+        """Run ICP once per correspondence distance, annealing coarse to fine.
+
+        The returned result describes the final, tightest stage, so its fitness and
+        inlier RMSE are what the acceptance thresholds are compared against.
+        """
+        if self._estimation_method == 'point_to_plane':
+            estimation = o3d.pipelines.registration.TransformationEstimationPointToPlane()
+        else:
+            estimation = o3d.pipelines.registration.TransformationEstimationPointToPoint()
+        criteria = o3d.pipelines.registration.ICPConvergenceCriteria(
+            relative_fitness=self._relative_fitness, relative_rmse=self._relative_rmse,
+            max_iteration=self._max_iteration)
+        transform = initial_transform
+        for max_correspondence_distance in self._correspondence_schedule:
+            result = o3d.pipelines.registration.registration_icp(
+                source, target, max_correspondence_distance, transform, estimation, criteria)
+            transform = result.transformation
+        return result
 
     def _follower_callback(self, message, follower_name):
         follower = self._followers[follower_name]
@@ -306,14 +417,8 @@ class MultiMapIcpAlignment(object):
 
             source = o3d.geometry.PointCloud()
             source.points = o3d.utility.Vector3dVector(follower_points)
-            target = o3d.geometry.PointCloud()
-            target.points = o3d.utility.Vector3dVector(leader_map['points'])
-            criteria = o3d.pipelines.registration.ICPConvergenceCriteria(
-                relative_fitness=self._relative_fitness, relative_rmse=self._relative_rmse,
-                max_iteration=self._max_iteration)
-            result = o3d.pipelines.registration.registration_icp(
-                source, target, self._max_correspondence_distance, follower['initial_transform'].A,
-                o3d.pipelines.registration.TransformationEstimationPointToPoint(), criteria)
+            result = self._register(source, leader_map['cloud'],
+                                    follower['initial_transform'].A)
             if result.fitness < self._min_fitness or result.inlier_rmse > self._max_inlier_rmse:
                 rospy.logwarn_throttle(5.0,
                     "ICP rejected for %s: fitness=%.3f (min %.3f), RMSE=%.3f (max %.3f)",
@@ -321,13 +426,26 @@ class MultiMapIcpAlignment(object):
                     result.inlier_rmse, self._max_inlier_rmse)
                 return
 
+            # ICP registers the follower map onto the leader map, so its result is
+            # ^{leader map}H_{follower map}.  Composing it with each robot's static
+            # world-to-map offset yields the relation between the two world frames:
+            #   ^{w_l}H_{w_f} = ^{w_l}H_{m_l} * ^{m_l}H_{m_f} * (^{w_f}H_{m_f})^{-1}
+            leader_offset = self._world_to_map_transform(
+                self._leader_world_frame, leader_map['frame_id'], 'leader map')
+            follower_offset = self._world_to_map_transform(
+                follower['world_frame'], follower_frame, follower_name)
+            if leader_offset is None or follower_offset is None:
+                return
+
             update_time = rospy.get_time()
-            measurement = SE3(result.transformation, check=False)
+            measurement = leader_offset * SE3(result.transformation, check=False) * follower_offset.inv()
             filtered_transform = follower['filter'].update(measurement, update_time)
             with self._lock:
                 output_transform = follower['rollout'].set_target(filtered_transform, update_time)
-                accepted = {'transform': output_transform, 'parent_frame': leader_map['frame_id'],
-                            'child_frame': follower_frame, 'rollout': follower['rollout']}
+                accepted = {'transform': output_transform,
+                            'parent_frame': self._leader_world_frame,
+                            'child_frame': follower['world_frame'],
+                            'rollout': follower['rollout']}
                 self._accepted_transforms[follower_name] = accepted
             self._publish_transform(accepted)
             rospy.loginfo("ICP accepted for %s: fitness=%.3f, RMSE=%.3f%s", follower_name,

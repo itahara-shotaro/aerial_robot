@@ -1,17 +1,26 @@
 # Map-to-map registration configuration for the base-station ICP node.
 #
-# Each initial guess transforms coordinates from the follower map frame into
-# the leader map frame.  The node publishes the same relation as TF:
-#   leader map frame -> follower map frame
+# Registration itself is done between the map frames: each initial guess
+# transforms coordinates from the follower map frame into the leader map frame.
+# The accepted result is then composed with the static world-to-map offset that
+# each robot broadcasts, and published as TF:
+#   leader world frame -> follower world frame
+#
+# That single edge joins the per-robot TF trees, so every world_frame_name below
+# must match the global_frame rosparam of the corresponding robot, and each robot
+# must use a distinct one.
 
 leader:
-  topic: /drone1/laser_cloud_map
+  topic: /gimbalrotor1/map
+  world_frame_name: world
 
 followers:
-  - name: drone2
-    topic: /drone2/laser_cloud_map
+  - name: gimbalrotor2
+    topic: /gimbalrotor2/map
+    world_frame_name: world_2
     initial_guess:
-      translation: [0.0, 0.0, 0.0]
+      # These guesses are to be denoted in the leader map frame.
+      translation: [3.0, 0.0, 0.0]
       # [roll, pitch, yaw] in radians.
       rotation_rpy: [0.0, 0.0, 0.0]
 
@@ -23,13 +32,31 @@ downsample:
   voxel_size: 0.5
 
 registration:
-  max_correspondence_distance: 2.0
+  # point_to_plane ignores displacement along the matched surface, which is where
+  # most of the disagreement between two maps lives: each robot voxelizes on a grid
+  # anchored at its own origin, so the same wall is sampled at different points.
+  # It needs normals on the leader map; normal_radius should be a few times
+  # fast_lio's filter_size_map (0.5 m) and is unused by point_to_point.
+  estimation_method: point_to_plane
+  normal_radius: 1.5
+
+  # ICP is run once per entry, coarse to fine, each stage starting from the previous
+  # result.  A single loose pass leaves wrong correspondences that never get pruned.
+  correspondence_schedule: [2.0, 1.0, 0.5, 0.25]
+
   max_iteration: 50
   relative_fitness: 1.0e-6
   relative_rmse: 1.0e-6
   min_points: 100
-  min_fitness: 0.30
-  max_inlier_rmse: 0.75
+
+  # These describe the FINAL (tightest) stage of the schedule, not a 2.0 m pass, so
+  # they are far stricter than the same numbers used to be: at 2.0 m essentially every
+  # point has some neighbour and fitness is ~1.0 regardless of quality.  On the mocap
+  # dataset good alignments score fitness 0.76 and RMSE 0.164 here.  Re-check against
+  # the values logged on the real site, which is less favourable than the mocap room,
+  # and loosen rather than letting the node reject everything.
+  min_fitness: 0.40
+  max_inlier_rmse: 0.40
 
   # PointCloud2 subscriber queue size and rate at which the last accepted
   # transform for each follower is rebroadcast on /tf.  Use a rate materially

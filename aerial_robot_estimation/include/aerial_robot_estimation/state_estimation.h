@@ -442,6 +442,7 @@ namespace aerial_robot_estimation
 
     inline uint8_t getUnhealthLevel() { return unhealth_level_; }
     std::string getTFPrefix() {return tf_prefix_;}
+    std::string getGlobalFrame() { return global_frame_; }
 
     const vector<boost::shared_ptr<sensor_plugin::SensorBase> >& getImuHandlers() const { return imu_handlers_;}
     const vector<boost::shared_ptr<sensor_plugin::SensorBase> >& getAltHandlers() const { return alt_handlers_;}
@@ -481,6 +482,7 @@ namespace aerial_robot_estimation
     /* robot model (kinematics)  */
     boost::shared_ptr<aerial_robot_model::RobotModel> robot_model_;
     std::string tf_prefix_;
+    std::string global_frame_{"world"};
 
     /* 6: x_w, y_w, z_w, x_b, y_b */
     /* TODO: check to vector3 */

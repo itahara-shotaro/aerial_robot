@@ -267,7 +267,7 @@ namespace sensor_plugin
         /* publish the offset tf if necessary */
         geometry_msgs::TransformStamped static_transformStamped;
         static_transformStamped.header.stamp = vo_msg->header.stamp;
-        static_transformStamped.header.frame_id = "world";
+        static_transformStamped.header.frame_id = estimator_->getGlobalFrame();
         static_transformStamped.child_frame_id = vo_msg->header.frame_id;
         tf::transformTFToMsg(world_offset_tf_, static_transformStamped.transform);
         static_broadcaster_.sendTransform(static_transformStamped);

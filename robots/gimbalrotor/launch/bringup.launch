@@ -21,6 +21,9 @@
   <arg name="robot_id" default="1" />
   <arg name="robot_ns" value="gimbalrotor$(arg robot_id)" />
   <arg name="airframe" default="ynltilt" />
+  <!-- Root of this robot's TF tree.  Multi-robot flights give each robot its own
+       (e.g. world_2) and bridge them with the base-station map ICP node. -->
+  <arg name="global_frame" default="world" />
 
   ###########  Parameters  ###########
   <group ns="$(arg robot_ns)">
@@ -63,6 +66,7 @@
     <param name="tf_prefix" value="$(arg robot_ns)"/>
     <param name="param_verbose" value="false"/>
     <param name="main_rate" value="40"/>
+    <param name="global_frame" value="$(arg global_frame)"/>
   </node>
 
   ###########  Robot Model  ###########
