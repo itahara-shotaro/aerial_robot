@@ -3,12 +3,14 @@
   <arg name="robot_ns" default="" />
   <arg name="headless" default="false" />
   <arg name="mujoco_model" default="" />
+  <arg name="real_time_factor" default="1.0" />
 
   <!-- mujoco ros control -->
   <include file="$(find mujoco_ros_control)/launch/mujoco.launch" >
     <arg name="robot_ns" value="$(arg robot_ns)" />
     <arg name="headless" value="$(arg headless)"/>
     <arg name="mujoco_model" value="$(arg mujoco_model)"/>
+    <arg name="real_time_factor" value="$(arg real_time_factor)"/>
   </include>
 
   <!-- basic parameter -->

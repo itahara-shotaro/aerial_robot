@@ -8,6 +8,7 @@ find_package(catkin REQUIRED COMPONENTS
   aerial_robot_estimation
   aerial_robot_model
   aerial_robot_msgs
+  mujoco_ros_control
   spinal
   pluginlib
   roscpp
@@ -36,6 +37,11 @@ target_link_libraries(gimbalrotor_robot_model ${catkin_LIBRARIES})
 
 add_library(gimbalrotor_navigation src/gimbalrotor_navigation.cpp)
 target_link_libraries(gimbalrotor_navigation ${catkin_LIBRARIES})
+
+### convert urdf to mujoco model (mjcf)
+mujoco_model_convert(
+  ${PROJECT_SOURCE_DIR}
+  ${PROJECT_SOURCE_DIR}/config/mujoco_model.yaml)
 
 install(DIRECTORY config plugins launch
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}

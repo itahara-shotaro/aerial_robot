@@ -24,6 +24,8 @@
   <!-- Root of this robot's TF tree.  Multi-robot flights give each robot its own
        (e.g. world_2) and bridge them with the base-station map ICP node. -->
   <arg name="global_frame" default="world" />
+  <arg name="mujoco" default="False" />
+  <arg name="mujoco_real_time_factor" default="1.0" />
 
   ###########  Parameters  ###########
   <group ns="$(arg robot_ns)">
@@ -89,10 +91,12 @@
   </include >
 
   ###########  Servo Bridge  ###########
-  <node pkg="aerial_robot_model" type="servo_bridge_node" name="servo_bridge" ns="$(arg robot_ns)" output="screen" />
+  <node pkg="aerial_robot_model" type="servo_bridge_node" name="servo_bridge" ns="$(arg robot_ns)" output="screen" >
+    <param name="use_mujoco" value="true" if="$(arg mujoco)"/>
+  </node>
 
   ########## Simulation in Gazebo #########
-  <include file="$(find aerial_robot_simulation)/launch/gazebo.launch" if = "$(eval arg('simulation') and not arg('real_machine'))" >
+  <include file="$(find aerial_robot_simulation)/launch/gazebo.launch" if = "$(eval arg('simulation') and not arg('real_machine') and not arg('mujoco'))" >
     <arg name="robot_ns" default="$(arg robot_ns)" />
     <arg name="gui" default="false" if="$(arg headless)"/>
     <arg name="headless" default="$(arg headless)" />
@@ -104,8 +108,16 @@
     <arg name="spawn_yaw" value="$(arg spawn_yaw)" />
   </include>
 
-  <group if="$(eval arg('simulation') and not arg('real_machine'))">
+  <group if="$(eval arg('simulation') and not arg('real_machine') and not arg('mujoco'))">
     <node pkg="aerial_robot_base" type="gazebo_killer.py" name="gazebo_killer"/>
   </group>
+
+  ########## Simulation in Mujoco #########
+  <include file="$(find aerial_robot_simulation)/launch/mujoco.launch" if="$(eval arg('simulation') and not arg('real_machine') and arg('mujoco'))" >
+    <arg name="robot_ns" value="$(arg robot_ns)" />
+    <arg name="headless" value="$(arg headless)"/>
+    <arg name="mujoco_model" value="$(find gimbalrotor)/mujoco/$(arg airframe)/robot.xml"/>
+    <arg name="real_time_factor" value="$(arg mujoco_real_time_factor)"/>
+  </include>
 
 </launch>

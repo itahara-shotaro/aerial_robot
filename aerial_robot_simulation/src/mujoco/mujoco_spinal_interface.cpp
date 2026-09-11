@@ -27,6 +27,11 @@ namespace hardware_interface
     spinal_state_estimator_.update();
   }
 
+  void MujocoSpinalInterface::useGroundTruth(bool flag)
+  {
+    spinal_state_estimator_.getAttEstimator()->useGroundTruth(flag);
+  }
+
   void MujocoSpinalInterface::setImuValue(double acc_x, double acc_y, double acc_z, double gyro_x, double gyro_y, double gyro_z)
   {
     spinal_state_estimator_.getAttEstimator()->setAcc(acc_x, acc_y, acc_z);

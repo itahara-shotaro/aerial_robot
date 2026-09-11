@@ -33,7 +33,7 @@
       <visual>
         <origin xyz="0 0 -0.0165" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://gimbalrotor/urdf/quad/mesh/base_link.STL"/>
+          <mesh filename="package://gimbalrotor/urdf/quad/mesh/base_link.stl"/>
         </geometry>
       </visual>
       <collision>
@@ -76,7 +76,7 @@
       <visual>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://gimbalrotor/urdf/quad/mesh/rotor_arm.STL"/>
+          <mesh filename="package://gimbalrotor/urdf/quad/mesh/rotor_arm.stl"/>
         </geometry>
       </visual>
       <collision>
@@ -105,7 +105,7 @@
       <visual>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://gimbalrotor/urdf/quad/mesh/rotor_arm.STL"/>
+          <mesh filename="package://gimbalrotor/urdf/quad/mesh/rotor_arm.stl"/>
         </geometry>
       </visual>
       <collision>
@@ -134,7 +134,7 @@
       <visual>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://gimbalrotor/urdf/quad/mesh/rotor_arm.STL"/>
+          <mesh filename="package://gimbalrotor/urdf/quad/mesh/rotor_arm.stl"/>
         </geometry>
       </visual>
       <collision>
@@ -163,7 +163,7 @@
       <visual>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://gimbalrotor/urdf/quad/mesh/rotor_arm.STL"/>
+          <mesh filename="package://gimbalrotor/urdf/quad/mesh/rotor_arm.stl"/>
         </geometry>
       </visual>
       <collision>
@@ -203,7 +203,7 @@
       <visual>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://gimbalrotor/urdf/quad/mesh/rotor_module.STL"/>
+          <mesh filename="package://gimbalrotor/urdf/quad/mesh/rotor_module.stl"/>
         </geometry>
       </visual>
     </link>

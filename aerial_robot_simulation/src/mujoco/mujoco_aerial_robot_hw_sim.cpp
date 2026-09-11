@@ -159,9 +159,29 @@ namespace mujoco_ros_control
     odom_msg.pose.pose.orientation.z = fc_quat.z();
     odom_msg.pose.pose.orientation.w = fc_quat.w();
 
+    /* linear velocity of the baselink (fc) in the world frame */
+    mjtNum fc_vel[6];
+    mj_objectVelocity(mujoco_model_, mujoco_data_, mjtObj_::mjOBJ_SITE, fc_id, fc_vel, 0);
+    odom_msg.twist.twist.linear.x = fc_vel[3] + gazebo::gaussianKernel(ground_truth_vel_noise_);
+    odom_msg.twist.twist.linear.y = fc_vel[4] + gazebo::gaussianKernel(ground_truth_vel_noise_);
+    odom_msg.twist.twist.linear.z = fc_vel[5] + gazebo::gaussianKernel(ground_truth_vel_noise_);
+
+    /* CAUTION! the angular is described in the fc frame, same as the gazebo simulation */
+    odom_msg.twist.twist.angular.x = gyro.x() + gazebo::gaussianKernel(ground_truth_angular_noise_);
+    odom_msg.twist.twist.angular.y = gyro.y() + gazebo::gaussianKernel(ground_truth_angular_noise_);
+    odom_msg.twist.twist.angular.z = gyro.z() + gazebo::gaussianKernel(ground_truth_angular_noise_);
+
+    if((time - last_ground_truth_time_).toSec() >= ground_truth_pub_rate_)
+      {
+        ground_truth_pub_.publish(odom_msg);
+        last_ground_truth_time_ = time;
+      }
+
     /* set ground truth for controller: use the value with noise */
     spinal_interface_.setGroundTruthStates(fc_quat.x(), fc_quat.y(), fc_quat.z(), fc_quat.w(),
-                                           gyro.x(), gyro.y(), gyro.z());
+                                           odom_msg.twist.twist.angular.x,
+                                           odom_msg.twist.twist.angular.y,
+                                           odom_msg.twist.twist.angular.z);
 
     if((time - last_mocap_time_).toSec() >= mocap_pub_rate_)
       {

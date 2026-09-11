@@ -33,7 +33,7 @@
       <visual>
         <origin xyz="0 0 -0.0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://gimbalrotor/urdf/ynltilt/mesh/experiment_mode_noprop.STL"/>
+          <mesh filename="package://gimbalrotor/urdf/ynltilt/mesh/experiment_mode_noprop.stl"/>
         </geometry>
       </visual>
       <collision>
@@ -157,7 +157,7 @@
       <visual>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://gimbalrotor/urdf/ynltilt/mesh/prop_module_5in.STL"/>
+          <mesh filename="package://gimbalrotor/urdf/ynltilt/mesh/prop_module_5in.stl"/>
         </geometry>
       </visual>
     </link>

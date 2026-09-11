@@ -30,9 +30,6 @@ Panels:
     Name: Time
     SyncMode: 0
     SyncSource: ""
-  - Class: jsk_rviz_plugin/PublishTopic
-    Name: PublishTopic
-    Topic: /task_start
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -375,29 +372,6 @@ Visualization Manager:
       Topic: /dragon/trajectory
       Unreliable: false
       Value: true
-    - Class: jsk_rviz_plugin/PieChart
-      Enabled: true
-      Name: Bat Volt
-      Topic: /dragon/battery_voltage_status
-      Value: true
-      auto color change: false
-      background color: 0; 0; 0
-      backround alpha: 0
-      clockwise rotate direction: false
-      foreground alpha: 0.699999988079071
-      foreground alpha 2: 0.4000000059604645
-      foreground color: 25; 255; 240
-      left: 128
-      max color: 255; 0; 0
-      max color change threthold: 0
-      max value: 26.100000381469727
-      med color: 255; 0; 0
-      med color change threthold: 0
-      min value: 0
-      show caption: true
-      size: 128
-      text size: 14
-      top: 128
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
