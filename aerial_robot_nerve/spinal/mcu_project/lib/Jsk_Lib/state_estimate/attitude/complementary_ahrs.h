@@ -38,6 +38,7 @@ public:
 
 private:
 
+  int acc_correction_count_ = 0;
   ap::Vector3f prev_mag_; /* for lpf filter method for mag */
 
   /* core esitmation process, using body frame */
@@ -46,7 +47,6 @@ private:
     EstimatorAlgorithm::estimation();
 
     int  valid_acc = 0;
-    static int cnt = 0;
 
     float acc_magnitude = acc_ * acc_; //norm?
     ap::Vector3f est_g_b_tmp = est_g_;
@@ -71,7 +71,7 @@ private:
     est_m_b_tmp = est_m_;
 
     /* acc correction */
-    if ( valid_acc == 1 && cnt == 0)
+    if ( valid_acc == 1 && acc_correction_count_ == 0)
       est_g_ = (est_g_b_tmp * GYR_CMPF_FACTOR + acc_) * INV_GYR_CMPF_FACTOR;
 
     /* mag correction */
@@ -96,8 +96,8 @@ private:
     if(rot_.is_nan()) rot_.identity();
 
     /* update */
-    if(valid_acc) cnt++;
-    if(cnt == PRESCLAER_ACC) cnt = 0;
+    if(valid_acc) acc_correction_count_++;
+    if(acc_correction_count_ == PRESCLAER_ACC) acc_correction_count_ = 0;
   }
 };
 
