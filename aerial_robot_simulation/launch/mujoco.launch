@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <launch>
   <arg name="robot_ns" default="" />
+  <arg name="launch_mujoco" default="true" />
   <arg name="headless" default="false" />
   <arg name="mujoco_model" default="" />
   <arg name="real_time_factor" default="1.0" />
 
   <!-- mujoco ros control -->
-  <include file="$(find mujoco_ros_control)/launch/mujoco.launch" >
+  <include file="$(find mujoco_ros_control)/launch/mujoco.launch" if="$(arg launch_mujoco)" >
     <arg name="robot_ns" value="$(arg robot_ns)" />
     <arg name="headless" value="$(arg headless)"/>
     <arg name="mujoco_model" value="$(arg mujoco_model)"/>

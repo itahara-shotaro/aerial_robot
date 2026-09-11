@@ -1,0 +1,10 @@
+robots:
+  - namespace: chain1
+    package: gimbalrotor
+    airframe: quad
+    pos: [-0.4, 0, 0]
+  - namespace: chain2
+    package: gimbalrotor
+    airframe: quad
+    pos: [0.4, 0, 0]
+attachments: [chain.xml]

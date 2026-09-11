@@ -19,12 +19,13 @@
   <arg name="spawn_yaw" default="0.0"/>
   <arg name="config_dir" default="$(find gimbalrotor)/config"/>
   <arg name="robot_id" default="1" />
-  <arg name="robot_ns" value="gimbalrotor$(arg robot_id)" />
+  <arg name="robot_ns" default="gimbalrotor$(arg robot_id)" />
   <arg name="airframe" default="ynltilt" />
   <!-- Root of this robot's TF tree.  Multi-robot flights give each robot its own
        (e.g. world_2) and bridge them with the base-station map ICP node. -->
   <arg name="global_frame" default="world" />
   <arg name="mujoco" default="False" />
+  <arg name="launch_mujoco" default="True" />
   <arg name="mujoco_real_time_factor" default="1.0" />
 
   ###########  Parameters  ###########
@@ -116,6 +117,7 @@
   <include file="$(find aerial_robot_simulation)/launch/mujoco.launch" if="$(eval arg('simulation') and not arg('real_machine') and arg('mujoco'))" >
     <arg name="robot_ns" value="$(arg robot_ns)" />
     <arg name="headless" value="$(arg headless)"/>
+    <arg name="launch_mujoco" value="$(arg launch_mujoco)"/>
     <arg name="mujoco_model" value="$(find gimbalrotor)/mujoco/$(arg airframe)/robot.xml"/>
     <arg name="real_time_factor" value="$(arg mujoco_real_time_factor)"/>
   </include>

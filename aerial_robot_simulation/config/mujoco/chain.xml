@@ -1,0 +1,7 @@
+<mujoco>
+  <equality>
+    <!-- Omitted relpose preserves the initial relative pose of the two bodies.
+         Add more pairs to extend the chain. Both robots retain free joints. -->
+    <weld name="chain_joint" body1="chain1/base_link" body2="chain2/base_link"/>
+  </equality>
+</mujoco>

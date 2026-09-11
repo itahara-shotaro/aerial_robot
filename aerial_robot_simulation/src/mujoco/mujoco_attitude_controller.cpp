@@ -14,8 +14,8 @@ namespace flight_controllers
 
     int index = n.getNamespace().rfind('/');
     std::string robot_ns = n.getNamespace().substr(0, index);
-    ros::NodeHandle n_robot = ros::NodeHandle(robot_ns);
-    controller_core_->init(&n_robot, robot->getEstimatorPtr());
+    robot_nh_ = ros::NodeHandle(robot_ns);
+    controller_core_->init(&robot_nh_, robot->getEstimatorPtr());
 
     /* use the ground truth attitude if the estimation mode is GROUND_TRUTH,
        which is the same policy as the gazebo simulation */

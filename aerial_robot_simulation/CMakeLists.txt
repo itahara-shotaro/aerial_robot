@@ -9,6 +9,7 @@ find_package(catkin REQUIRED COMPONENTS
   aerial_robot_msgs
   aerial_robot_model
   gazebo_ros_control
+  controller_manager
   kdl_parser
   mujoco_ros_control
   roscpp
@@ -57,7 +58,8 @@ target_link_libraries(mujoco_spinal_interface ${catkin_LIBRARIES})
 add_library(aerial_robot_hw_sim src/aerial_robot_hw_sim.cpp)
 target_link_libraries(aerial_robot_hw_sim spinal_interface ${catkin_LIBRARIES} ${GAZEBO_LIBRARIES} ${orocos_kdl_LIBRARIES})
 
-add_library(mujoco_aerial_robot_hw_sim src/mujoco/mujoco_aerial_robot_hw_sim.cpp )
+add_library(mujoco_aerial_robot_hw_sim src/mujoco/mujoco_aerial_robot_hw_sim.cpp
+  src/mujoco/mujoco_multi_robot_hw_sim.cpp)
 target_link_libraries(mujoco_aerial_robot_hw_sim ${catkin_LIBRARIES} mujoco_spinal_interface)
 
 
@@ -76,3 +78,21 @@ install(DIRECTORY scripts
 install(FILES aerial_robot_hw_sim_plugins.xml flight_controllers_plugins.xml mujoco_robot_hw_sim_plugin.xml
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
+
+catkin_install_python(PROGRAMS scripts/merge_mujoco_models.py scripts/multi_mujoco.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+
+install(FILES README.md DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
+
+install(DIRECTORY launch config
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
+
+if(CATKIN_ENABLE_TESTING)
+  catkin_add_nosetests(test/test_mujoco_scene.py)
+  catkin_add_gtest(test_mujoco_estimator test/test_mujoco_estimator.cpp)
+  if(TARGET test_mujoco_estimator)
+    target_link_libraries(test_mujoco_estimator ${catkin_LIBRARIES})
+  endif()
+  add_executable(mujoco_scene_physics_test test/mujoco_scene_physics_test.cpp)
+  target_link_libraries(mujoco_scene_physics_test ${catkin_LIBRARIES})
+endif()

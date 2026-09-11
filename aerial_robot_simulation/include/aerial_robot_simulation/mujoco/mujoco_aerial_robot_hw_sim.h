@@ -1,10 +1,10 @@
 #pragma once
 
 #include <aerial_robot_simulation/mujoco/mujoco_spinal_interface.h>
-#include <aerial_robot_simulation/noise_model.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <mujoco_ros_control/mujoco_default_robot_hw_sim.h>
 #include <nav_msgs/Odometry.h>
+#include <mutex>
 
 namespace mujoco_ros_control
 {
@@ -25,6 +25,13 @@ namespace mujoco_ros_control
     void write(const ros::Time& time, const ros::Duration& period) override;
 
   protected:
+    void controlInputCallback(const sensor_msgs::JointState& msg);
+    ros::NodeHandle model_nh_;
+    std::string model_prefix_;
+    int fc_id_;
+    int sensor_ids_[3];
+    std::vector<int> actuator_ids_, joint_ids_;
+    std::mutex control_mutex_;
     hardware_interface::MujocoSpinalInterface spinal_interface_;
 
     std::vector<std::string> rotor_list_;

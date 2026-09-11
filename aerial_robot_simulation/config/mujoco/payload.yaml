@@ -1,0 +1,9 @@
+# Two independent controllers, connected to one light payload by elastic cables.
+robots:
+  - namespace: carrier1
+    package: mini_quadrotor
+    pos: [-0.6, 0, 0]
+  - namespace: carrier2
+    package: mini_quadrotor
+    pos: [0.6, 0, 0]
+attachments: [payload.xml]

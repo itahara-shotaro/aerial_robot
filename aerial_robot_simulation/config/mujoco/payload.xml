@@ -1,0 +1,22 @@
+<mujoco>
+  <worldbody>
+    <body name="payload" pos="0 0 0.04">
+      <freejoint/>
+      <geom name="payload" type="box" size="0.15 0.06 0.03" mass="0.08" rgba="0.9 0.5 0.1 1"/>
+      <site name="payload_left" pos="-0.15 0 0.03" size="0.01"/>
+      <site name="payload_right" pos="0.15 0 0.03" size="0.01"/>
+    </body>
+  </worldbody>
+  <tendon>
+    <!-- springlength is a dead band: cables pull when stretched, never push.
+         The upper limit caps extension; both cables are slack at spawn. -->
+    <spatial name="cable1" limited="true" range="0 0.85" springlength="0 0.65" stiffness="100" damping="1" width="0.003">
+      <site site="carrier1/fc"/>
+      <site site="payload_left"/>
+    </spatial>
+    <spatial name="cable2" limited="true" range="0 0.85" springlength="0 0.65" stiffness="100" damping="1" width="0.003">
+      <site site="carrier2/fc"/>
+      <site site="payload_right"/>
+    </spatial>
+  </tendon>
+</mujoco>
