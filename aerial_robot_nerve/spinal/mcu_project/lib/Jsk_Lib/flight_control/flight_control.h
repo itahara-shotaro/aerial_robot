@@ -160,8 +160,8 @@ private:
   bool start_control_flag_;
   bool pwm_test_flag_;
   bool integrate_flag_;
-  bool force_landing_flag_;
-  bool gimbal_set_flag_;
+  bool force_landing_flag_ = false;
+  bool gimbal_set_flag_ = false;
 
   AttitudeController att_controller_;
 #ifndef SIMULATION
