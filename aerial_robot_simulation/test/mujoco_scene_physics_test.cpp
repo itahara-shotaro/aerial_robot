@@ -11,7 +11,9 @@ int main(int argc, char** argv)
 {
   try
     {
-      if (argc != 3) throw std::runtime_error("Usage: mujoco_scene_physics_test scene.xml chain|payload");
+      if (argc < 3 || argc > 4)
+        throw std::runtime_error("Usage: mujoco_scene_physics_test scene.xml chain|payload|elastic [plugin_library]");
+      if (argc == 4) mj_loadPluginLibrary(argv[3]);
       char error[1024] = {};
       std::unique_ptr<mjModel, decltype(&mj_deleteModel)> model(mj_loadXML(argv[1], nullptr, error, sizeof(error)), mj_deleteModel);
       if (!model) throw std::runtime_error(error);
@@ -23,6 +25,33 @@ int main(int argc, char** argv)
         if (id < 0) throw std::runtime_error(std::string("Missing body ") + name);
         return id;
       };
+      if (std::string(argv[2]) == "elastic")
+        {
+          int a = body("elastic1/base_link"), b = body("elastic2/base_link");
+          int middle = body("noodle/B_12");
+          if (m->nplugin == 0 || m->body_plugin[middle] < 0)
+            throw std::runtime_error("Elastic connector is not backed by a plugin");
+          mj_forward(m, d);
+          double initial_z = d->xpos[3 * middle + 2];
+          for (int step = 0; step < 1.0 / m->opt.timestep; ++step)
+            {
+              d->xfrc_applied[6*a+2] = 1.3 * m->body_subtreemass[a] * 9.81;
+              d->xfrc_applied[6*b+2] = 1.3 * m->body_subtreemass[b] * 9.81;
+              mj_step(m, d);
+            }
+          mj_forward(m, d);
+          for (int i = 0; i < m->nq; ++i)
+            if (!std::isfinite(d->qpos[i])) throw std::runtime_error("Nonfinite cable state");
+          for (int i = 0; i < mjNWARNING; ++i)
+            if (d->warning[i].number) throw std::runtime_error("MuJoCo reported a dynamics warning");
+          double rise = d->xpos[3 * middle + 2] - initial_z;
+          double sag = (d->xpos[3*a+2] + d->xpos[3*b+2]) / 2 - d->xpos[3*middle+2];
+          std::cout << "Elastic connector rise: " << rise << " m; sag: " << sag << " m\n";
+          if (rise < 0.1 || sag < 0.001)
+            throw std::runtime_error("Connector did not lift and bend between its endpoints");
+          std::cout << "PASS\n";
+          return 0;
+        }
       const bool chain = std::string(argv[2]) == "chain";
       if (!chain && std::string(argv[2]) != "payload") throw std::runtime_error("Expected chain or payload");
       int a = body(chain ? "chain1/base_link" : "carrier1/main_body");

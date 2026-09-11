@@ -72,6 +72,51 @@ class SceneTests(unittest.TestCase):
         self.assertEqual(merged.find("./equality/weld").get("body2"), "b/base")
         self.assertEqual(len(merged.findall("./worldbody/body/freejoint")), 3)
 
+    def test_preserves_plugin_declarations_instances_and_composites(self):
+        fragment = self.root / "elastic.xml"
+        fragment.write_text('''<mujoco>
+<extension><plugin plugin="mujoco.elasticity.cable">
+  <instance name="foam"><config key="bend" value="1e5"/></instance>
+</plugin></extension>
+<worldbody><composite prefix="noodle/" type="cable" count="25 1 1" size="1.2">
+  <plugin instance="foam"/><geom type="capsule" size="0.03"/>
+</composite></worldbody>
+<equality><connect body1="noodle/B_last" body2="a/base" anchor="0.05 0 0"/></equality>
+</mujoco>''')
+        merged = merge_models(self.world, [self.robot("a/")], [fragment])
+        for authored, actual in zip(ET.parse(str(fragment)).getroot(), list(merged)[-3:]):
+            self.assertEqual(ET.tostring(authored), ET.tostring(actual))
+        self.assertEqual(merged.find("./extension/plugin").get("plugin"), "mujoco.elasticity.cable")
+
+    def test_passes_through_future_sections_attributes_and_attachment_order(self):
+        first, second = self.root / "first.xml", self.root / "second.xml"
+        first.write_text('<mujoco><option iterations="70"/><default class="foam"><geom density="30"/></default>'
+                         '<future_feature mode="custom"><setting value="unchanged"/></future_feature></mujoco>')
+        second.write_text('<mujoco><option iterations="90"/><visual><global elevation="-20"/></visual></mujoco>')
+        merged = merge_models(self.world, [self.robot("a/")], [first, second])
+        self.assertEqual([elem.tag for elem in list(merged)[-5:]],
+                         ["option", "default", "future_feature", "option", "visual"])
+        self.assertEqual([elem.get("iterations") for elem in merged.findall("option")], ["70", "90"])
+        self.assertEqual(merged.find("./default[@class='foam']/geom").get("density"), "30")
+        self.assertEqual(merged.find("future_feature").get("mode"), "custom")
+        # The merger preserves unknown syntax; the engine decides if it is valid.
+        self.assertEqual(merged.find("./future_feature/setting").get("value"), "unchanged")
+
+    def test_attachment_includes_keep_plugins_and_resolve_assets(self):
+        directory = self.root / "fragments"
+        directory.mkdir()
+        (directory / "elastic.xml").write_text('<mujocoinclude><extension><plugin plugin="mujoco.elasticity.cable"/></extension>'
+                                               '<asset><mesh name="connector" file="connector.stl"/></asset></mujocoinclude>')
+        fragment = self.root / "attachment.xml"
+        fragment.write_text('<mujoco><include file="fragments/elastic.xml"/></mujoco>')
+        merged = merge_models(self.world, [self.robot("a/")], [fragment])
+        self.assertEqual(merged.find("./extension/plugin").get("plugin"), "mujoco.elasticity.cable")
+        self.assertEqual(merged.find("./asset/mesh[@name='connector']").get("file"), str(directory / "connector.stl"))
+        self.assertFalse(merged.findall(".//include"))
+        (directory / "elastic.xml").write_text('<mujoco><include file="../attachment.xml"/></mujoco>')
+        with self.assertRaisesRegex(ValueError, "Recursive MJCF include"):
+            merge_models(self.world, [self.robot("a/")], [fragment])
+
     def test_rejects_overlapping_ownership_and_invalid_inputs(self):
         for prefixes in (("a/", "a/"), ("a", "a/"), ("", "b/")):
             with self.assertRaises(ValueError):

@@ -126,14 +126,30 @@ slack interval, spring stiffness and damping, and an upper length limit. The
 example uses each drone's `fc` site as its attachment point. For different
 attachment locations, add named sites to the robot MJCF body before merging.
 
-Attachment files use ordinary MJCF `worldbody`, `tendon`, `equality`, `contact`,
-`asset`, `actuator`, `sensor`, or `custom` sections. Reference the final prefixed
-robot names, e.g. `carrier1/fc` or `chain1/base_link`. A `connect` equality can
-provide a ball connection in place of a weld. The merger retains and prefixes
-robot-local constraints, materials, textures, and named defaults, and scopes
-implicit defaults to each imported model. It skips the generated models'
-`world.xml` includes because the scene provides one world. Other robot includes
-must be expanded first; global robot options and keyframes are rejected.
+Attachment files are MJCF fragments, spliced into the scene in the order listed
+in `attachments`. The merger preserves complete top-level sections and their
+attributes instead of filtering sections or moving only their children. This
+supports `extension`, `default`, `option`, `visual`, composite geometry, and
+future MJCF sections supported by your engine. MuJoCo validates the resulting
+schema and applies its usual rules for repeated sections. Nested includes are
+expanded and asset paths are resolved relative to their source files.
+
+Attachment names, plugin identifiers, instance references, and plugin config
+values are not prefixed or otherwise interpreted. Give each attachment's named
+objects, plugin instances, default classes, and composite prefixes unique names.
+Reference the final prefixed robot names, e.g. `carrier1/fc` or
+`chain1/base_link`. A `connect` equality provides a ball connection in place of
+a weld. Global options and unscoped defaults in an attachment affect the whole
+scene; retain the scene's radian angle convention. Paths embedded in opaque
+plugin `<config value="...">` strings are passed through unchanged: use absolute
+paths if a plugin interprets these strings as filenames.
+
+Robot model imports still use stricter processing because their names and poses
+must be transformed. The merger retains and prefixes their constraints,
+materials, textures, and named defaults, and scopes implicit defaults to each
+robot. It skips the generated models' `world.xml` includes because the scene
+provides one world. Other robot includes must be expanded first; global robot
+options and keyframes are rejected.
 
 Connections couple the physics; each flight controller still controls its own
 drone. For the supplied connected examples, arm both robots, take off together,
@@ -142,6 +158,78 @@ cables may remain slack; command both drones to 1 m to lift it. Payload mass,
 cable geometry, gains, and trajectories must suit the drones' available thrust.
 There is no additional cooperative payload controller or automatic allocation
 of a shared payload's mass.
+
+## Thick elastic connectors (MuJoCo engine plugins)
+
+[elastic_chain.yaml](config/mujoco/elastic_chain.yaml) connects two gimbalrotors
+with a 1.2 m long, 6 cm diameter capsule chain using `mujoco.elasticity.cable`.
+Unlike the payload example's spatial tendons, this connector has material
+geometry and bending/torsional elasticity. Its radius, density, `bend` and
+`twist` moduli are illustrative settings, not measured pool-noodle properties.
+Tune these in [elastic_chain.xml](config/mujoco/elastic_chain.xml); `count`
+controls the discretization. Each end uses a ball attachment. Use welds if you
+want to constrain the endpoint orientation as well. The full example reserves
+collision bit 30 for the connector, allowing contact with the floor and itself
+while its endpoint constraints transfer loads into the drones. This avoids
+contact forces from overlapping geometry at the mounts.
+
+A minimal plugin declaration and connector look like:
+
+```xml
+<extension>
+  <plugin plugin="mujoco.elasticity.cable"/>
+</extension>
+<worldbody>
+  <composite prefix="noodle/" type="cable" curve="s" count="25 1 1"
+             size="1.2" offset="-0.6 0 0.2" initial="free">
+    <plugin plugin="mujoco.elasticity.cable">
+      <config key="twist" value="5e4"/>
+      <config key="bend" value="1e5"/>
+    </plugin>
+    <joint kind="main" damping="0.01"/>
+    <geom type="capsule" size="0.03" density="30"/>
+  </composite>
+</worldbody>
+```
+
+MuJoCo plugins must be registered **before model loading**; XML declarations do
+not load shared libraries. See [MuJoCo's plugin registration documentation](https://mujoco.readthedocs.io/en/2.3.7/programming/extension.html#registration).
+The current ROS bridge does not call `mj_loadPluginLibrary`.
+[elastic_mujoco.launch](launch/elastic_mujoco.launch) sets `LD_LIBRARY_PATH` and
+`LD_PRELOAD` for the scene launcher and its child processes, preserving existing
+entries. It selects the elastic-chain scene and opens the GUI by default:
+
+```bash
+roslaunch aerial_robot_simulation elastic_mujoco.launch
+```
+
+Use `headless:=true` for a headless run or `scene:=/path/to/scene.yaml` for another
+scene. `mujoco_dir` defaults to the bridge's bundled `build/mujoco-2.3.7`
+directory; `plugin_library` defaults to its `bin/mujoco_plugin/libelasticity.so`.
+Both paths can be overridden, and `real_time_factor` is forwarded as usual.
+The environment additions do not modify your shell. For a custom simulator
+executable, call `mj_loadPluginLibrary` before `mj_loadXML`.
+Use libraries built for the same MuJoCo version as your simulator. Other engine
+plugins follow the same attachment mechanism; no additional merger allowlist
+entry is necessary.
+
+The native dynamics check can load the library directly:
+
+```bash
+MUJOCO_CONNECTOR_DIST="$(rospack find mujoco_ros_control)/build/mujoco-2.3.7"
+rosrun aerial_robot_simulation multi_mujoco.py \
+  --scene "$(rospack find aerial_robot_simulation)/config/mujoco/elastic_chain.yaml" \
+  --output-dir /tmp/elastic_scene --generate-only
+rosrun aerial_robot_simulation mujoco_scene_physics_test \
+  /tmp/elastic_scene/scene.xml elastic \
+  "$MUJOCO_CONNECTOR_DIST/bin/mujoco_plugin/libelasticity.so"
+```
+
+The example has passed model compilation and the native bending/load-transfer
+check. Stable coordinated flight with the existing controller gains has not
+been established. Inspect the model in the viewer and tune the connector and
+controllers for your application. `connected_robot_smoke.py elastic1 elastic2`
+is available to exercise coordinated vertical flight and landing.
 
 ## Validation
 

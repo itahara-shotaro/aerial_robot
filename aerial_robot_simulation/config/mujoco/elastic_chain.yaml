@@ -1,0 +1,12 @@
+# A thick, bendable connector between two separately controlled gimbalrotors.
+# roslaunch aerial_robot_simulation elastic_mujoco.launch loads the plugin.
+robots:
+  - namespace: elastic1
+    package: gimbalrotor
+    airframe: quad
+    pos: [-0.6, 0, 0]
+  - namespace: elastic2
+    package: gimbalrotor
+    airframe: quad
+    pos: [0.6, 0, 0]
+attachments: [elastic_chain.xml]

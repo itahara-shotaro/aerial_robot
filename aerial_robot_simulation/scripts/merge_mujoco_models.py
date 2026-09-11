@@ -17,7 +17,9 @@ NAME_ATTRS = {
     "childclass", "actuator", "objname", "refname", "cranksite", "slidersite",
     "refsite", "camera",
 }
-SECTIONS = {"asset", "worldbody", "actuator", "sensor", "tendon", "equality", "contact", "custom"}
+# Generated robots need a known schema for safe namespacing. Attachments are
+# already authored in scene coordinates/names and are passed through as MJCF.
+ROBOT_SECTIONS = {"asset", "worldbody", "actuator", "sensor", "tendon", "equality", "contact", "custom"}
 
 
 def numbers(value, count, label):
@@ -69,7 +71,12 @@ def section(root, tag):
 
 
 def merge_models(world_path, robots, attachments=(), robot_collisions=True):
-    """robots: dictionaries with model, prefix, optional pos and yaw."""
+    """robots: dictionaries with model, prefix, optional pos and yaw.
+
+    Attachments are ordered MJCF fragments, not isolated robot models: complete
+    sections are appended without namespacing or a section allowlist. Global
+    settings/defaults in a fragment therefore apply to the whole final model.
+    """
     if not robots:
         raise ValueError("At least one robot is required")
     prefixes = [robot["prefix"] for robot in robots]
@@ -104,7 +111,7 @@ def merge_models(world_path, robots, attachments=(), robot_collisions=True):
             root.remove(include)
         if any(elem.tag == "include" for elem in root.iter()):
             raise ValueError("Expand nested robot includes before composition")
-        unsupported = {elem.tag for elem in root} - SECTIONS - {"compiler", "statistic", "default"}
+        unsupported = {elem.tag for elem in root} - ROBOT_SECTIONS - {"compiler", "statistic", "default"}
         if unsupported:
             raise ValueError("Scene owns global settings; unsupported robot sections: %s" % sorted(unsupported))
         prefix_tree(root, spec["prefix"], path.parent)
@@ -149,15 +156,18 @@ def merge_models(world_path, robots, attachments=(), robot_collisions=True):
                 geom.set("contype", str(bit))
                 geom.set("conaffinity", str(mask))
         for elem in root:
-            if elem.tag in SECTIONS:
+            if elem.tag in ROBOT_SECTIONS:
                 section(output, elem.tag).extend(list(elem))
 
     for path in attachments:
-        fragment = load_fragment(path)
-        for elem in fragment:
-            if elem.tag not in SECTIONS:
-                raise ValueError("Attachment fragments may only contain %s" % sorted(SECTIONS))
-            section(output, elem.tag).extend(list(elem))
+        # Splice complete top-level elements, like MJCF <include>. In particular,
+        # do not flatten <extension>/<default> or discard section attributes
+        # (e.g. <option viscosity="...">). This also preserves future MJCF
+        # sections without teaching this merger their schema. MuJoCo remains
+        # responsible for schema validation and repeated-section semantics.
+        # Paths/includes are resolved above; names and plugin config stay local
+        # to the authored scene, with no robot prefix applied.
+        output.extend(list(load_fragment(path)))
     return output
 
 
