@@ -31,7 +31,8 @@ def generate(scene_path, output_dir, headless=True, real_time_factor=1.0):
     scene = yaml.safe_load(scene_path.read_text())
     if not isinstance(scene, dict) or not isinstance(scene.get("robots"), list) or not scene["robots"]:
         raise ValueError("Scene must contain a nonempty robots list")
-    unknown = set(scene) - {"world", "robots", "attachments", "robot_collisions"}
+    unknown = set(scene) - {"world", "robots", "attachments", "robot_collisions",
+                            "clock_pub_freq", "physics_substeps"}
     if unknown:
         raise ValueError("Unknown scene fields: %s" % sorted(unknown))
     if not isinstance(scene.get("robot_collisions", True), bool):
@@ -96,7 +97,14 @@ def generate(scene_path, output_dir, headless=True, real_time_factor=1.0):
     robot_param.text = yaml.safe_dump(["/" + robot["namespace"] for robot in robots])
     # The existing bridge supplies physics, viewer, pacing and the single clock.
     node = ET.SubElement(launch, "node", pkg="mujoco_ros_control", type="mujoco_ros_control", name="mujoco_ros_control", ns="mujoco_world", output="screen", required="true")
-    for name, value in dict(mujoco_model_path=str(model_path), headless=str(headless).lower(), real_time_factor=str(real_time_factor)).items():
+    node_params = dict(mujoco_model_path=str(model_path), headless=str(headless).lower(), real_time_factor=str(real_time_factor))
+    # Optional: shorten the physics step without changing the control rate.
+    for key in ("clock_pub_freq", "physics_substeps"):
+        if key in scene:
+            if not isinstance(scene[key], int) or isinstance(scene[key], bool) or scene[key] < 1:
+                raise ValueError("%s must be a positive integer" % key)
+            node_params[key] = str(scene[key])
+    for name, value in node_params.items():
         ET.SubElement(node, "param", name=name, value=value)
     launch_path = output_dir / "scene.launch"
     write_xml(launch, launch_path)

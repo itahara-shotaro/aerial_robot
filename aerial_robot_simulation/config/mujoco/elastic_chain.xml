@@ -3,27 +3,88 @@
     <plugin plugin="mujoco.elasticity.cable"/>
   </extension>
   <worldbody>
-    <!-- Capsule-chain approximation of a 1.2 m long, 6 cm diameter foam rod.
-         Density and elastic moduli are illustrative, not measured foam data.
-         Use a unique composite prefix for every connector in a scene. -->
-    <composite prefix="noodle/" type="cable" curve="s" count="25 1 1"
+    <!-- EVA/EPE pool noodle cut to 1.2 m: 65 mm OD, 30 mm bore, 94 g, foam
+         E ~ 0.8 MPa, nu ~ 0.3. MuJoCo's cable composite is a chain of solid
+         capsules, so every number here is the solid-capsule equivalent of that
+         hollow section, calibrated rather than guessed:
+           density  gives a 94 g chain. It depends on count, because
+                    consecutive capsule end caps overlap and double-count mass.
+           bend     makes a 1.2 m cantilever of this chain droop 0.305 m, which
+                    is what E = 0.8 MPa predicts for the real section. (The old
+                    bend="1e5" drooped 1.018 m - that is a rope, not a noodle.)
+           twist    = bend / (2 * (1 + nu)).
+
+         count must satisfy  size/(count-1) >= 2*size_of_geom.  Capsules i and
+         i+2 are born interpenetrating whenever the chain pitch falls below the
+         capsule diameter, and the composite only excludes ADJACENT pairs. The
+         old count="25" gave a 50 mm pitch against a 60 mm diameter, so every
+         i/i+2 pair sat 10 mm inside its neighbour for the whole run: 44
+         permanent contacts fighting the elasticity plugin, which is what made
+         the rod itself visibly misbehave. At count="13" the pitch is 100 mm.
+         The coarser chain also drops the stiffest bending mode from 240 Hz to
+         85 Hz (omega*dt 1.51 -> 0.54, explicit limit ~2), which matters because
+         mujoco_ros_control overrides opt.timestep to 1 ms and the step cannot
+         be shortened from this file. -->
+    <composite prefix="noodle/" type="cable" curve="s" count="13 1 1"
                size="1.2" offset="-0.6 0 0.2" initial="free">
       <plugin plugin="mujoco.elasticity.cable">
-        <config key="twist" value="5e4"/>
-        <config key="bend" value="1e5"/>
+        <config key="twist" value="2.0e5"/>
+        <config key="bend" value="5.2e5"/>
       </plugin>
-      <joint kind="main" damping="0.01"/>
-      <!-- Reserve bit 30 for the connector: collide with the floor and itself.
-           Equality constraints carry loads into the drones; collision at the
-           overlapping mounts would otherwise generate opposing contact forces. -->
-      <geom type="capsule" size="0.03" density="30" rgba="0.9 0.5 0.1 1"
-            contype="1073741824" conaffinity="1073741825"/>
+      <!-- Foam is strongly dissipative (tan_delta ~ 0.1). These dampers act in
+           series, so the whole-noodle value is damping/(count-1); 0.05 here is
+           ~6% on the rod's torsional mode. Rescale it with count. -->
+      <joint kind="main" damping="0.05"/>
+      <!-- Bit 30 marks the connector. conaffinity="1" collides with the floor
+           but not with itself; self-collision may be re-enabled with
+           conaffinity="1073741825" as long as the count rule above holds. -->
+      <geom type="capsule" size="0.0325" density="16.47" rgba="0.9 0.5 0.1 1"
+            contype="1073741824" conaffinity="1"/>
     </composite>
   </worldbody>
   <equality>
-    <!-- Ball attachments allow endpoint rotation. The last capsule is 0.05 m
-         long, so its far endpoint is at local x=0.05. Use welds for clamped ends. -->
-    <connect name="noodle_left" body1="noodle/B_first" body2="elastic1/base_link" anchor="0 0 0"/>
-    <connect name="noodle_right" body1="noodle/B_last" body2="elastic2/base_link" anchor="0.05 0 0"/>
+    <!-- Clamped ends, matching the real mount. A weld transmits moment, which
+         couples both drones' attitude loops, and a DEFAULT weld does it through
+         an infinitely rigid clamp: the pair then diverges in symmetric roll
+         within ~2 s of leaving the ground. torquescale="1" is the culprit -
+         its units are METRES, so the default is a 1 m rotational lever on a
+         ~0.3 m airframe. It never flies, at any solref.
+
+         These values come from a 4x4 sweep of torquescale x solref timeconst
+         (16 cells + repeats). The measured stability map was:
+
+               ts \ tc    0.02   0.03   0.04   0.08
+                  0.05     X      X      X      OK
+                  0.1      X      OK     OK     OK
+                  0.3      X      X      X      OK
+                  1.0      X      X      X      X
+
+         Read it before retuning, because it is NOT monotonic: ts=0.05 is
+         *less* stable than ts=0.1, so a softer clamp is not a safer clamp.
+         (0.1, 0.08) is the only cell with all its neighbours stable, which is
+         why it is the default here; it is 4/4 reproducible. (0.1, 0.04) also
+         flies but sits on a knife edge - both its ts neighbours fail.
+
+         Stability is NOT governed by the clamp stiffness the pair represents:
+         (0.05, 0.04) and (0.1, 0.08) have identical ts/tc, hence identical
+         angular stiffness, yet the first fails 4/4 and the second is stable.
+         It is set by how the constraint is discretised - tc in units of the
+         1 ms step, and ts relative to solimp's default width of 0.001. The
+         transmitted moment, by contrast, does follow ts/tc: steady pitch trim
+         rises with it and saturates near 3 deg, where the rod's own bending
+         stiffness takes over from the clamp.
+
+         The result is still a clamp, not a pin: ~5 deg of pitch trim against
+         ~0.5 deg for connect, so the clamp moment is genuinely transmitted.
+
+         anchor is the far endpoint of the terminal capsule, size/(count-1) =
+         0.1 m at count="13"; update it whenever count changes. relpose is
+         deliberately omitted - MuJoCo's compiler fills it from qpos0, so the
+         weld starts satisfied instead of snapping the two frames together.
+         Swap weld -> connect for pinned ends (force only, no clamp moment). -->
+    <weld name="noodle_left" body1="noodle/B_first" body2="elastic1/base_link"
+          anchor="0 0 0" torquescale="0.1" solref="0.08 1"/>
+    <weld name="noodle_right" body1="noodle/B_last" body2="elastic2/base_link"
+          anchor="0.1 0 0" torquescale="0.1" solref="0.08 1"/>
   </equality>
 </mujoco>

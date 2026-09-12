@@ -1,0 +1,30 @@
+# The elastic_chain pair with the connector removed.
+#
+# This is the control experiment for the PCC commander: same namespaces, same
+# airframe, same spawn poses as elastic_chain.yaml, and nothing welded between
+# the two drones. The namespaces are deliberately still elastic1/elastic2 so the
+# commander's launch file, PCC system XML and parameters can be reused verbatim
+# - exactly one variable changes between this scene and elastic_chain.yaml.
+#
+# Bring up a commanded formation here first. If the drones cannot hold the pose
+# pair the forward kinematics asks for WITHOUT a cable, the problem is in the
+# commander (frame conventions, base_link->COG correction, slew rate, HOVER
+# gating), not in the cable coupling.
+#
+# No elasticity plugin is required, so this uses multi_mujoco.launch directly
+# rather than elastic_mujoco.launch:
+#
+#   roslaunch aerial_robot_simulation multi_mujoco.launch \
+#     scene:=$(find aerial_robot_simulation)/config/mujoco/free_pair.yaml \
+#     headless:=false
+#
+# (multi_mujoco.launch defaults to headless:=true; pass headless:=false to watch.)
+robots:
+  - namespace: elastic1
+    package: gimbalrotor
+    airframe: quad
+    pos: [-0.6, 0, 0]
+  - namespace: elastic2
+    package: gimbalrotor
+    airframe: quad
+    pos: [0.6, 0, 0]
