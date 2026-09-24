@@ -1,0 +1,6 @@
+world: studio.xml
+robots:
+  - namespace: gimbalrotor1
+    package: gimbalrotor
+    airframe: quad
+    pos: [0, 0, 0]

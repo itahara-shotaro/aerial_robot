@@ -84,7 +84,7 @@ catkin_install_python(PROGRAMS scripts/merge_mujoco_models.py scripts/multi_mujo
 
 install(FILES README.md DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
 
-install(DIRECTORY launch config
+install(DIRECTORY launch config gazebo_model
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
 
 if(CATKIN_ENABLE_TESTING)
