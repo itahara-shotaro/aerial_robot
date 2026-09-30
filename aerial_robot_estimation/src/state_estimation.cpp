@@ -90,6 +90,7 @@ void StateEstimator::initialize(ros::NodeHandle nh, ros::NodeHandle nh_private, 
   full_state_pub_ = nh_.advertise<aerial_robot_msgs::States>("uav/full_state", 1);
 
   nhp_.param("tf_prefix", tf_prefix_, std::string(""));
+  nhp_.param("global_frame", global_frame_, std::string("world"));
 
   double rate;
   nhp_.param("state_pub_rate", rate, 100.0);
@@ -106,6 +107,9 @@ void StateEstimator::setOrientationWxB(int frame, int estimate_mode, tf::Vector3
   tf::Vector3 wy_b = wz_b.cross(wx_b);
   wy_b.normalize();
 
+  wx_b = wy_b.cross(wz_b);
+  wx_b.normalize();
+
   rot[0] = wx_b; rot[1] = wy_b; rot[2] = wz_b;
 
   setOrientation(frame, estimate_mode, rot);
@@ -119,6 +123,9 @@ void StateEstimator::setOrientationWzB(int frame, int estimate_mode, tf::Vector3
   tf::Vector3 wx_b = rot.getRow(0);
   tf::Vector3 wy_b = wz_b.cross(wx_b);
   wy_b.normalize();
+
+  wx_b = wy_b.cross(wz_b);
+  wx_b.normalize();
 
   rot[0] = wx_b; rot[1] = wy_b; rot[2] = wz_b;
 
@@ -171,7 +178,7 @@ void StateEstimator::statePublish(const ros::TimerEvent & e)
 
   nav_msgs::Odometry odom_state;
   odom_state.header.stamp = imu_stamp;
-  odom_state.header.frame_id = std::string("/world");
+  odom_state.header.frame_id = getGlobalFrame();
 
   /* Baselink */
   /* Rotation */
@@ -201,7 +208,7 @@ void StateEstimator::statePublish(const ros::TimerEvent & e)
       tf::poseMsgToTF(odom_state.pose.pose, world2baselink_tf);
       geometry_msgs::TransformStamped transformStamped;
       tf::transformStampedTFToMsg(tf::StampedTransform(world2baselink_tf * root2baselink_tf.inverse(),
-                                                       imu_stamp, "world",
+                                                       imu_stamp, getGlobalFrame(),
                                                        tf::resolve(tf_prefix_, std::string("root"))),
                                   transformStamped);
       br_.sendTransform(transformStamped);

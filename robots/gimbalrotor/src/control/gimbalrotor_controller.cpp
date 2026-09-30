@@ -33,6 +33,9 @@ void GimbalrotorController::initialize(ros::NodeHandle nh, ros::NodeHandle nhp,
   torque_allocation_matrix_inv_pub_ =
       nh_.advertise<spinal::TorqueAllocationMatrixInv>("torque_allocation_matrix_inv", 1);
   gimbal_dof_pub_ = nh_.advertise<std_msgs::UInt8>("gimbal_dof", 1);
+  last_gain_set_time_ = ros::Time::now().toSec();
+  gain_set_interval_ = 0.1;
+
 }
 
 void GimbalrotorController::reset()
@@ -61,11 +64,22 @@ bool GimbalrotorController::update()
     gimbal_dof_pub_.publish(msg);
   }
 
+  if(ros::Time::now().toSec() - last_gain_set_time_ > gain_set_interval_)
+  {
+    setAttitudeGains();
+    last_gain_set_time_ = ros::Time::now().toSec();
+  }
+
   return PoseLinearController::update();
 }
 
 void GimbalrotorController::controlCore()
 {
+  if(!robot_model_->initialized())
+  {
+    ROS_WARN_THROTTLE(1.0, "[GimbalrotorController] robot model is not initialized yet, skip controlCore");
+    return;
+  }
   PoseLinearController::controlCore();
   tf::Matrix3x3 uav_rot = estimator_->getOrientation(Frame::COG, estimate_mode_);
   tf::Vector3 target_acc_w(pid_controllers_.at(X).result(), pid_controllers_.at(Y).result(),

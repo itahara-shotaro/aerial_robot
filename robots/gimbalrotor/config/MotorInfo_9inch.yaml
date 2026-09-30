@@ -2,7 +2,7 @@ motor_info:
         min_pwm: 0.5 # 1000 [ms]
         max_pwm: 0.85 # 1700 [ms]
         min_thrust: 2.0 #  [N]
-        force_landing_thrust: 6.0 #[N]
+        force_landing_thrust: 3.0 #[N]
         m_f_rate: -0.0157
         pwm_conversion_mode: 0 # SQRT Mode
         vel_ref_num: 4

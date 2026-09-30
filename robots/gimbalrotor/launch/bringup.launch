@@ -23,6 +23,9 @@
   <arg name="airframe" default="ynltilt" />
   <!-- Basename of the control config in the airframe config directory. -->
   <arg name="control_config" default="GimbalrotorControl" />
+  <!-- Root of this robot's TF tree.  Multi-robot flights give each robot its own
+       (e.g. world_2) and bridge them with the base-station map ICP node. -->
+  <arg name="global_frame" default="world" />
 
   ###########  Parameters  ###########
   <group ns="$(arg robot_ns)">
@@ -65,13 +68,7 @@
     <param name="tf_prefix" value="$(arg robot_ns)"/>
     <param name="param_verbose" value="false"/>
     <param name="main_rate" value="40"/>
-  </node>
-
-  ###########  Pruning Servo by Kamada ###########
-  <node pkg="aerial_robot_base" 
-        type="prune_servo_listener.py" 
-        name="dynamixel_controller" 
-        output="screen">
+    <param name="global_frame" value="$(arg global_frame)"/>
   </node>
 
   ###########  Robot Model  ###########
@@ -108,5 +105,9 @@
     <arg name="spawn_z" value="$(arg spawn_z)" />
     <arg name="spawn_yaw" value="$(arg spawn_yaw)" />
   </include>
+
+  <group if="$(eval arg('simulation') and not arg('real_machine'))">
+    <node pkg="aerial_robot_base" type="gazebo_killer.py" name="gazebo_killer"/>
+  </group>
 
 </launch>

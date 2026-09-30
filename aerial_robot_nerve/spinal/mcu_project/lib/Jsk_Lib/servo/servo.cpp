@@ -84,6 +84,7 @@ void DirectServo::sendData(bool flag_send_asap)
           spinal::ServoState servo;
           servo.index = i;
           servo.angle = s.present_position_;
+          servo.velocity = s.present_velocity_;
           servo.temp = s.present_temp_;
           servo.load = s.present_current_;
           servo.error = s.hardware_error_status_;
@@ -106,6 +107,7 @@ void DirectServo::sendData(bool flag_send_asap)
           spinal::ServoState servo;
           servo.index = i;
           servo.angle = s.present_position_;
+          servo.velocity = s.present_velocity_;
           servo.temp = s.present_temp_;
           servo.load = s.present_current_;
           servo.error = s.hardware_error_status_;
