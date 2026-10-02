@@ -380,17 +380,6 @@ void GimbalLQIController::controlCore()
 
   Eigen::VectorXd target_f = target_thrust_z_term + target_vectoring_f_xy;
 
-  /* Spinal resolves each rotor's gimbal angle as atan2(-f_lateral, f_thrust). Before the z integral
-     has built up (on the ground) or while force-landing, f_thrust is near zero, so that angle is
-     decided by noise and the gimbals whip around. Substitute the static hover thrust to keep the
-     direction well defined, as the Dragon gimbal controller does. */
-  if(!start_rp_integration_ || navigator_->getForceLandingFlag())
-    {
-      Eigen::VectorXd static_thrust = robot_model_->getStaticThrust();
-      for(int i = 0; i < motor_num_; i++)
-        target_f(rotor_coef_ * i + rotor_coef_ - 1) = static_thrust(i);
-    }
-
   for(int i = 0; i < input_num_; i++) target_base_thrust_.at(i) = target_f(i);
 
   target_vectoring_f_ = target_f;
