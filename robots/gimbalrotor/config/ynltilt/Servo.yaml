@@ -4,7 +4,7 @@ servo_controller:
   gimbals:
     ctrl_pub_topic: servo/target_states
     angle_sgn: 1
-    angle_scale: 0.00076699
+    angle_scale: 0.001534
     zero_point_offset: 2047
 
     controller1:
