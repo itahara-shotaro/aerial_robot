@@ -259,8 +259,18 @@
     </link>
   </xacro:macro>
 
-  <xacro:extra_module name = "lidar_imu" parent = "base_link" visible = "0" >
+  <xacro:extra_module name = "lidar_optical_center" parent = "base_link" visible = "0" >
     <origin xyz="${0.0} ${0.0} ${0.15562}" rpy="0 0 ${-pi/2.0}"/>
+    <inertial>
+      <mass value = "00" />
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia
+          ixx="0.0" ixy="0.0" ixz="0.0"
+          iyy="0.0" iyz="0.0" izz="0.0"/>
+    </inertial>
+  </xacro:extra_module>
+  <xacro:extra_module name = "lidar_imu" parent = "lidar_optical_center" visible = "0" >
+    <origin xyz="${0.011} ${0.02329} ${-0.04412}" rpy="0 0 0"/>
     <inertial>
       <mass value = "00" />
       <origin xyz="0 0 0" rpy="0 0 0"/>
