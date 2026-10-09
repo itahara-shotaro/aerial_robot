@@ -157,6 +157,7 @@ void AttitudeController::baseInit()
 
   control_term_pub_last_time_ = 0;
   control_feedback_state_pub_last_time_ = 0;
+  gimbal_control_pub_last_time_ = 0;
 
   // frame
   offset_rot_.identity();
@@ -1198,7 +1199,11 @@ void AttitudeController::pwmConversion()
               gimbal_control_angles_[2*i] = static_cast<int16_t>((servo_roll.getGoalPosition() + servo_roll.internal_offset_) / servo_roll.resolution_ratio_);
               gimbal_control_angles_[2*i+1] = static_cast<int16_t>((servo_pitch.getGoalPosition() + servo_pitch.internal_offset_) / servo_pitch.resolution_ratio_);
             }
-            gimbal_control_pub_.publish(&gimbal_control_msg_);
+            if(HAL_GetTick() - gimbal_control_pub_last_time_ >= GIMBAL_CONTROL_PUB_INTERVAL)
+              {
+                gimbal_control_pub_last_time_ = HAL_GetTick();
+                gimbal_control_pub_.publish(&gimbal_control_msg_);
+              }
           }
         else
           servo_->torqueEnable(gimbal_map);
@@ -1229,7 +1234,11 @@ void AttitudeController::pwmConversion()
               gimbal_control_indices_[i] = i;
               gimbal_control_angles_[i] = static_cast<int16_t>((servo.getGoalPosition() + servo.internal_offset_) / servo.resolution_ratio_);
             }
-            gimbal_control_pub_.publish(&gimbal_control_msg_);
+            if(HAL_GetTick() - gimbal_control_pub_last_time_ >= GIMBAL_CONTROL_PUB_INTERVAL)
+              {
+                gimbal_control_pub_last_time_ = HAL_GetTick();
+                gimbal_control_pub_.publish(&gimbal_control_msg_);
+              }
           }
         else
           servo_->torqueEnable(gimbal_map);
