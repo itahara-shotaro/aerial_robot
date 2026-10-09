@@ -41,6 +41,7 @@
 #include <std_msgs/Float32MultiArray.h>
 #include <std_srvs/SetBool.h>
 #include <spinal/Pwms.h>
+#include <spinal/TargetThrust.h>
 #include <spinal/PwmTest.h>
 #include <spinal/FourAxisCommand.h>
 #include <spinal/RollPitchYawTerms.h>
@@ -48,7 +49,6 @@
 #include <spinal/UavInfo.h>
 #include <spinal/PMatrixPseudoInverseWithInertia.h>
 #include <spinal/TorqueAllocationMatrixInv.h>
-#include <spinal/ServoControlCmd.h>
 
 #define IDLE_DUTY 0.5f
 #define FORCE_LANDING_INTEGRAL 0.0025f // 500Hz * 0.0025 = 1.25 N / sec
@@ -63,7 +63,7 @@
 #define CONTROL_TERM_PUB_INTERVAL 100
 #define CONTROL_FEEDBACK_STATE_PUB_INTERVAL 25
 #define PWM_PUB_INTERVAL 100 //100ms
-#define GIMBAL_CONTROL_PUB_INTERVAL 20 //20ms, monitoring only
+#define TARGET_THRUST_PUB_INTERVAL 5 //5ms, 200Hz
 
 #define MOTOR_TEST 0
 
@@ -120,7 +120,9 @@ private:
   ros::Publisher pwms_pub_;
   ros::Publisher control_term_pub_;
   ros::Publisher control_feedback_state_pub_;
+  ros::Publisher target_thrust_pub_;
   spinal::Pwms pwms_msg_;
+  spinal::TargetThrust target_thrust_msg_;
   spinal::RollPitchYawTerms control_term_msg_;
   spinal::RollPitchYawTerm control_feedback_state_msg_;
 
@@ -152,11 +154,9 @@ private:
   ros::ServiceServer<std_srvs::SetBool::Request, std_srvs::SetBool::Response, AttitudeController> att_control_srv_;
 
   ros::Publisher esc_telem_pub_;
-  ros::Publisher gimbal_control_pub_;
   spinal::ESCTelemetryArray esc_telem_msg_;
-  spinal::ServoControlCmd gimbal_control_msg_;
-  uint8_t gimbal_control_indices_[MAX_MOTOR_NUMBER];
-  int16_t gimbal_control_angles_[MAX_MOTOR_NUMBER];
+  float target_thrust_report_[MAX_MOTOR_NUMBER];
+  float target_gimbal_report_[MAX_MOTOR_NUMBER];
 
   void setAttitudeControlCallback(const std_srvs::SetBool::Request& req, std_srvs::SetBool::Response& res)
   {
@@ -225,9 +225,10 @@ private:
   uint32_t voltage_update_last_time_;
   uint32_t control_term_pub_last_time_, control_feedback_state_pub_last_time_;
   uint32_t pwm_pub_last_time_;
-  uint32_t gimbal_control_pub_last_time_;
+  uint32_t target_thrust_pub_last_time_;
   float pwm_test_value_[MAX_MOTOR_NUMBER]; // PWM Test
 
+  void publishTargetThrust();
   void fourAxisCommandCallback( const spinal::FourAxisCommand &cmd_msg);
   void pwmInfoCallback( const spinal::PwmInfo &info_msg);
   void rpyGainCallback( const spinal::RollPitchYawTerms &gain_msg);

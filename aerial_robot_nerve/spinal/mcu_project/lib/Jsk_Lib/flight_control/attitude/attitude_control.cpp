@@ -25,6 +25,7 @@ void AttitudeController::init(ros::NodeHandle* nh, StateEstimate* estimator)
   pwms_pub_ = nh_->advertise<spinal::Pwms>("motor_pwms", 1);
   control_term_pub_ = nh_->advertise<spinal::RollPitchYawTerms>("rpy/pid", 1);
   control_feedback_state_pub_ = nh_->advertise<spinal::RollPitchYawTerm>("rpy/feedback_state", 1);
+  target_thrust_pub_ = nh_->advertise<spinal::TargetThrust>("target_thrust", 1);
   anti_gyro_pub_ = nh_->advertise<std_msgs::Float32MultiArray>("gyro_moment_compensation", 1);
   four_axis_cmd_sub_ = nh_->subscribe("four_axes/command", 1, &AttitudeController::fourAxisCommandCallback, this);
   pwm_info_sub_ = nh_->subscribe("motor_info", 1, &AttitudeController::pwmInfoCallback, this);
@@ -45,6 +46,7 @@ AttitudeController::AttitudeController():
   pwms_pub_("motor_pwms", &pwms_msg_),
   control_term_pub_("rpy/pid", &control_term_msg_),
   control_feedback_state_pub_("rpy/feedback_state", &control_feedback_state_msg_),
+  target_thrust_pub_("target_thrust", &target_thrust_msg_),
   four_axis_cmd_sub_("four_axes/command", &AttitudeController::fourAxisCommandCallback, this ),
   pwm_info_sub_("motor_info", &AttitudeController::pwmInfoCallback, this),
   rpy_gain_sub_("rpy/gain", &AttitudeController::rpyGainCallback, this),
@@ -53,8 +55,7 @@ AttitudeController::AttitudeController():
   torque_allocation_matrix_inv_sub_("torque_allocation_matrix_inv", &AttitudeController::torqueAllocationMatrixInvCallback, this),
   offset_rot_sub_("desire_coordinate", &AttitudeController::offsetRotCallback, this ),
   att_control_srv_("set_attitude_control", &AttitudeController::setAttitudeControlCallback, this),
-  esc_telem_pub_("esc_telem", &esc_telem_msg_),
-  gimbal_control_pub_("servo/target_states_fc", &gimbal_control_msg_)
+  esc_telem_pub_("esc_telem", &esc_telem_msg_)
 {
 }
 
@@ -112,8 +113,8 @@ void AttitudeController::init(TIM_HandleTypeDef* htim1, TIM_HandleTypeDef* htim2
   nh_->advertise(pwms_pub_);
   nh_->advertise(control_term_pub_);
   nh_->advertise(control_feedback_state_pub_);
+  nh_->advertise(target_thrust_pub_);
   nh_->advertise(esc_telem_pub_);
-  nh_->advertise(gimbal_control_pub_);
 
   nh_->subscribe(four_axis_cmd_sub_);
   nh_->subscribe(pwm_info_sub_);
@@ -157,7 +158,7 @@ void AttitudeController::baseInit()
 
   control_term_pub_last_time_ = 0;
   control_feedback_state_pub_last_time_ = 0;
-  gimbal_control_pub_last_time_ = 0;
+  target_thrust_pub_last_time_ = 0;
 
   // frame
   offset_rot_.identity();
@@ -875,6 +876,37 @@ bool AttitudeController::activated()
   else return false;
 }
 
+/* Reports the per-rotor thrust magnitude and gimbal targets that pwmConversion() has just computed. After its
+   conversion loop target_thrust_[0 .. motor_number_ / rotor_coef_ - 1] hold the magnitudes (the loop compacts the
+   per-rotor force vectors in place).*/
+void AttitudeController::publishTargetThrust()
+{
+  if(!start_control_flag_ || motor_number_ == 0) return;
+
+  uint32_t now_time = HAL_GetTick();
+  if(now_time - target_thrust_pub_last_time_ < TARGET_THRUST_PUB_INTERVAL) return;
+  target_thrust_pub_last_time_ = now_time;
+
+  const uint8_t rotor_num = motor_number_ / rotor_coef_;
+  const uint8_t gimbal_num = rotor_num * gimbal_dof_;
+
+#ifdef SIMULATION
+  target_thrust_msg_.stamp = ros::Time::now();
+  target_thrust_msg_.thrust.assign(target_thrust_, target_thrust_ + rotor_num);
+  target_thrust_msg_.gimbal_angle.assign(target_gimbal_angles_, target_gimbal_angles_ + gimbal_num);
+  target_thrust_pub_.publish(target_thrust_msg_);
+#else
+  for(int i = 0; i < rotor_num; i++) target_thrust_report_[i] = target_thrust_[i];
+  for(int i = 0; i < gimbal_num; i++) target_gimbal_report_[i] = target_gimbal_angles_[i];
+  target_thrust_msg_.stamp = nh_->now();
+  target_thrust_msg_.thrust_length = rotor_num;
+  target_thrust_msg_.thrust = target_thrust_report_;
+  target_thrust_msg_.gimbal_angle_length = gimbal_num;
+  target_thrust_msg_.gimbal_angle = target_gimbal_report_;
+  target_thrust_pub_.publish(&target_thrust_msg_);
+#endif
+}
+
 void AttitudeController::pwmConversion()
 {
   auto convert = [this](float target_thrust)
@@ -1132,6 +1164,8 @@ void AttitudeController::pwmConversion()
       /* for ros */
       pwms_msg_.motor_value[i] = (target_pwm_[i] * 2000);
     }
+  publishTargetThrust();
+
   //TODO: send target gimbal angles in real machiene
 #ifdef SIMULATION
   //TODO: directly send target gimbal angles to gazebo
@@ -1168,10 +1202,6 @@ void AttitudeController::pwmConversion()
     case 2:
       {
         std::map<uint8_t, float> gimbal_map;
-        gimbal_control_msg_.index_length = motor_number_ / rotor_coef_ * 2;
-        gimbal_control_msg_.angles_length = motor_number_ / rotor_coef_ * 2;
-        gimbal_control_msg_.index = gimbal_control_indices_;
-        gimbal_control_msg_.angles = gimbal_control_angles_;
         for(int i = 0; i < motor_number_ / (rotor_coef_); i++){
           if(start_control_flag_)
             {
@@ -1185,26 +1215,7 @@ void AttitudeController::pwmConversion()
             }
         }
         if(start_control_flag_)
-          {
-            servo_->setGoalAngle(gimbal_map,ValueType::RADIAN);
-            gimbal_control_msg_.index_length = motor_number_ / rotor_coef_ * 2;
-            gimbal_control_msg_.angles_length = motor_number_ / rotor_coef_ * 2;
-            gimbal_control_msg_.index = gimbal_control_indices_;
-            gimbal_control_msg_.angles = gimbal_control_angles_;
-            for(int i = 0; i < motor_number_ / (rotor_coef_); i++){
-              const auto& servo_roll = servo_->getServoHnadler().getServo()[2*i];
-              const auto& servo_pitch = servo_->getServoHnadler().getServo()[2*i + 1];
-              gimbal_control_indices_[2*i] = 2*i;
-              gimbal_control_indices_[2*i+1] = 2*i + 1;
-              gimbal_control_angles_[2*i] = static_cast<int16_t>((servo_roll.getGoalPosition() + servo_roll.internal_offset_) / servo_roll.resolution_ratio_);
-              gimbal_control_angles_[2*i+1] = static_cast<int16_t>((servo_pitch.getGoalPosition() + servo_pitch.internal_offset_) / servo_pitch.resolution_ratio_);
-            }
-            if(HAL_GetTick() - gimbal_control_pub_last_time_ >= GIMBAL_CONTROL_PUB_INTERVAL)
-              {
-                gimbal_control_pub_last_time_ = HAL_GetTick();
-                gimbal_control_pub_.publish(&gimbal_control_msg_);
-              }
-          }
+          servo_->setGoalAngle(gimbal_map,ValueType::RADIAN);
         else
           servo_->torqueEnable(gimbal_map);
         break;
@@ -1212,10 +1223,6 @@ void AttitudeController::pwmConversion()
     case 1:
       {
         std::map<uint8_t, float> gimbal_map;
-        gimbal_control_msg_.index_length = motor_number_ / rotor_coef_;
-        gimbal_control_msg_.angles_length = motor_number_ / rotor_coef_;
-        gimbal_control_msg_.index = gimbal_control_indices_;
-        gimbal_control_msg_.angles = gimbal_control_angles_;
         for(int i = 0; i < motor_number_ / (rotor_coef_); i++){
           if(start_control_flag_)
             gimbal_map[i] = target_gimbal_angles_[i];
@@ -1223,23 +1230,7 @@ void AttitudeController::pwmConversion()
             gimbal_map[i] = 0;
         }
         if(start_control_flag_)
-          {
-            servo_->setGoalAngle(gimbal_map,ValueType::RADIAN);
-            gimbal_control_msg_.index_length = motor_number_ / rotor_coef_;
-            gimbal_control_msg_.angles_length = motor_number_ / rotor_coef_;
-            gimbal_control_msg_.index = gimbal_control_indices_;
-            gimbal_control_msg_.angles = gimbal_control_angles_;
-            for(int i = 0; i < motor_number_ / (rotor_coef_); i++){
-              const auto& servo = servo_->getServoHnadler().getServo()[i];
-              gimbal_control_indices_[i] = i;
-              gimbal_control_angles_[i] = static_cast<int16_t>((servo.getGoalPosition() + servo.internal_offset_) / servo.resolution_ratio_);
-            }
-            if(HAL_GetTick() - gimbal_control_pub_last_time_ >= GIMBAL_CONTROL_PUB_INTERVAL)
-              {
-                gimbal_control_pub_last_time_ = HAL_GetTick();
-                gimbal_control_pub_.publish(&gimbal_control_msg_);
-              }
-          }
+          servo_->setGoalAngle(gimbal_map,ValueType::RADIAN);
         else
           servo_->torqueEnable(gimbal_map);
         break;
