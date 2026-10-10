@@ -33,7 +33,7 @@
       <visual>
         <origin xyz="0 0 -0.0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://gimbalrotor/urdf/ynltilt/mesh/experiment_mode_noprop.STL"/>
+          <mesh filename="package://gimbalrotor/urdf/ynltilt/mesh/experiment_mode_noprop.stl"/>
         </geometry>
       </visual>
       <collision>
@@ -157,7 +157,7 @@
       <visual>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://gimbalrotor/urdf/ynltilt/mesh/prop_module_5in.STL"/>
+          <mesh filename="package://gimbalrotor/urdf/ynltilt/mesh/prop_module_5in.stl"/>
         </geometry>
       </visual>
     </link>
@@ -262,21 +262,21 @@
   <xacro:extra_module name = "lidar_optical_center" parent = "base_link" visible = "0" >
     <origin xyz="${0.0} ${0.0} ${0.15562}" rpy="0 0 ${-pi/2.0}"/>
     <inertial>
-      <mass value = "00" />
+      <mass value = "0.00001" />
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <inertia
-          ixx="0.0" ixy="0.0" ixz="0.0"
-          iyy="0.0" iyz="0.0" izz="0.0"/>
+          ixx="0.000001" ixy="0.0" ixz="0.0"
+          iyy="0.000001" iyz="0.0" izz="0.000001"/>
     </inertial>
   </xacro:extra_module>
   <xacro:extra_module name = "lidar_imu" parent = "lidar_optical_center" visible = "0" >
     <origin xyz="${0.011} ${0.02329} ${-0.04412}" rpy="0 0 0"/>
     <inertial>
-      <mass value = "00" />
+      <mass value = "0.00001" />
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <inertia
-          ixx="0.0" ixy="0.0" ixz="0.0"
-          iyy="0.0" iyz="0.0" izz="0.0"/>
+          ixx="0.000001" ixy="0.0" ixz="0.0"
+          iyy="0.000001" iyz="0.0" izz="0.000001"/>
     </inertial>
   </xacro:extra_module>
 </robot>
