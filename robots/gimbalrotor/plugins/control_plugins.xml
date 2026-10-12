@@ -2,4 +2,8 @@
   <class name="aerial_robot_control/gimbalrotor_controller" type="aerial_robot_control::GimbalrotorController" base_class_type="aerial_robot_control::ControlBase">
     <description>plugin for gimbalrotor control </description>
   </class>
+
+  <class name="aerial_robot_control/gimbalrotor_lqi_controller" type="aerial_robot_control::GimbalLQIController" base_class_type="aerial_robot_control::ControlBase">
+    <description>gimbalrotor control plugin: LQI over the gimbal-masked virtual inputs for z, roll, pitch, and yaw; x and y use a null-space outer loop</description>
+  </class>
 </library>
