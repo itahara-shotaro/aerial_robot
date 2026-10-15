@@ -163,6 +163,15 @@ void AttitudeController::baseInit()
   // frame
   offset_rot_.identity();
 
+  /* This initialization is necessary when running spinal in Sim, as
+     zero-allocation is not guaranteed there.
+  */
+  for(int i = 0; i < MAX_MOTOR_NUMBER; i++)
+    {
+      target_gimbal_angles_[i] = 0;
+      for(int j = 0; j < 4; j++) p_matrix_pseudo_inverse_[i][j] = 0;
+    }
+
   reset();
 }
 
