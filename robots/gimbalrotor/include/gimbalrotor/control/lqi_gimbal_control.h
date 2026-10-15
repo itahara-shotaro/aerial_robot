@@ -9,6 +9,8 @@
 #include <std_msgs/Float32MultiArray.h>
 #include <std_msgs/UInt8.h>
 
+#include <atomic>
+
 namespace aerial_robot_control
 {
   /* LQI controller for the gimbalrotor.
@@ -54,6 +56,9 @@ namespace aerial_robot_control
     /* guards the gain-generator thread, which the base class starts before this class has finished
        resizing the gain containers to input_num_ */
     bool lqi_ready_;
+
+    /* set once this flight's first FourAxisCommand has gone out; read by the gain-generator thread */
+    std::atomic<bool> flight_cmd_sent_;
 
     Eigen::MatrixXd q_mat_inv_;      // pseudo-inverse of the 4 x input_num_ controlled plant
     Eigen::VectorXd target_vectoring_f_;

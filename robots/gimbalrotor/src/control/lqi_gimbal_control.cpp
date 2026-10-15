@@ -6,7 +6,7 @@ GimbalLQIController::GimbalLQIController():
   UnderActuatedLQIController(),
   gimbal_dof_(1), rotor_coef_(2), input_num_(0),
   r_thrust_(1.0), r_lateral_(10.0), allocation_det_thresh_(1e-3), max_gimbal_angle_(0.6),
-  lqi_ready_(false)
+  lqi_ready_(false), flight_cmd_sent_(false)
 {
 }
 
@@ -233,7 +233,15 @@ void GimbalLQIController::publishGain()
   if(navi_state != aerial_robot_navigation::TAKEOFF_STATE &&
      navi_state != aerial_robot_navigation::HOVER_STATE &&
      navi_state != aerial_robot_navigation::LAND_STATE)
-    return;
+    {
+      flight_cmd_sent_ = false;
+      return;
+    }
+
+  /* Wait until the base thrust has been sent at least once, to prevent the servos from moving sorely
+     based on the attitude term alone.
+   */
+  if(!flight_cmd_sent_) return;
 
   aerial_robot_msgs::FourAxisGain four_axis_gain_msg;
   spinal::RollPitchYawTerms rpy_gain_msg; // to spinal
@@ -446,6 +454,7 @@ void GimbalLQIController::sendCmd()
      base_thrust = the input_num_ virtual inputs. Note that torque_allocation_matrix_inv is
      deliberately never published: spinal would overwrite the LQI gains with it. */
   UnderActuatedLQIController::sendCmd();
+  flight_cmd_sent_ = true;
 
   std_msgs::Float32MultiArray target_vectoring_force_msg;
   for(int i = 0; i < target_vectoring_f_.size(); i++)
