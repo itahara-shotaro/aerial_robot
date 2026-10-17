@@ -1,22 +1,14 @@
 <launch>
-  <!-- Convenience entry point for the bundled MuJoCo elasticity plugin. -->
+  <!-- The two-gimbalrotor pool-noodle example. multi_mujoco.py preloads the
+       elasticity plugin into the MuJoCo server because the scene declares it. -->
   <arg name="scene" default="$(find aerial_robot_simulation)/config/mujoco/elastic_chain.yaml"/>
   <arg name="headless" default="false"/>
   <arg name="real_time_factor" default="1.0"/>
-  <arg name="mujoco_dir" default="$(find mujoco_ros_control)/build/mujoco-2.3.7"/>
-  <arg name="plugin_library" default="$(arg mujoco_dir)/bin/mujoco_plugin/libelasticity.so"/>
-
-  <!-- Scope these additions to the scene launcher and its child processes.
-       Preserve existing entries, without introducing an empty search path. -->
-  <group>
-    <env name="LD_LIBRARY_PATH"
-         value="$(eval arg('mujoco_dir') + '/lib' + (':' + optenv('LD_LIBRARY_PATH', '') if optenv('LD_LIBRARY_PATH', '') else ''))"/>
-    <env name="LD_PRELOAD"
-         value="$(eval arg('plugin_library') + (' ' + optenv('LD_PRELOAD', '') if optenv('LD_PRELOAD', '') else ''))"/>
-    <include file="$(find aerial_robot_simulation)/launch/multi_mujoco.launch">
-      <arg name="scene" value="$(arg scene)"/>
-      <arg name="headless" value="$(arg headless)"/>
-      <arg name="real_time_factor" value="$(arg real_time_factor)"/>
-    </include>
-  </group>
+  <arg name="control_config" default=""/>
+  <include file="$(find aerial_robot_simulation)/launch/multi_mujoco.launch">
+    <arg name="scene" value="$(arg scene)"/>
+    <arg name="headless" value="$(arg headless)"/>
+    <arg name="real_time_factor" value="$(arg real_time_factor)"/>
+    <arg name="control_config" value="$(arg control_config)"/>
+  </include>
 </launch>

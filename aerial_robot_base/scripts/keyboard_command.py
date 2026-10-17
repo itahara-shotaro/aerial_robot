@@ -6,6 +6,7 @@ import sys, select, termios, tty
 
 import rospy
 from std_msgs.msg import Empty
+from geometry_msgs.msg import Vector3Stamped
 from aerial_robot_msgs.msg import FlightNav
 import rosgraph
 
@@ -28,6 +29,17 @@ h:  halt (force stop motor)
 
      a           s           d           ]
 (move left)  (backward) (move right) (move down)
+
+baselink rotation (robots with final_target_baselink_rpy, e.g. gimbalrotor, dragon):
+
+                 i
+           (tilt forward)
+     j                       k
+(tilt left)             (tilt right)
+                 m
+            (tilt back)
+
+o:  reset baselink rotation to level
 
 
 Please don't have caps lock on.
@@ -55,6 +67,20 @@ def publishNav(nav_pub, nav_msg, success_msg):
 
         nav_pub.publish(nav_msg)
         return success_msg
+
+def publishRot(rot_pub, roll, pitch):
+        if rot_pub is None:
+                return "rotation command ignored: set ~robot_ns to select a robot"
+
+        rot_msg = Vector3Stamped()
+        rot_msg.header.stamp = rospy.Time.now()
+        rot_msg.vector.x = roll
+        rot_msg.vector.y = pitch
+        rot_pub.publish(rot_msg)
+        return "send baselink rot command: roll %.2f, pitch %.2f" % (roll, pitch)
+
+def clamp(value, limit):
+        return max(-limit, min(limit, value))
 
 if __name__=="__main__":
         settings = termios.tcgetattr(sys.stdin)
@@ -86,8 +112,10 @@ if __name__=="__main__":
                 nav_robot_ns = robot_namespaces[0]
 
         nav_pub = None
+        rot_pub = None
         if nav_robot_ns:
                 nav_pub = rospy.Publisher(nav_robot_ns + '/uav/nav', FlightNav, queue_size=1)
+                rot_pub = rospy.Publisher(nav_robot_ns + '/final_target_baselink_rpy', Vector3Stamped, queue_size=1)
         elif len(robot_namespaces) > 1:
                 rospy.logwarn("Multiple robots found; set ~robot_ns to enable navigation commands")
         else:
@@ -96,6 +124,12 @@ if __name__=="__main__":
         xy_vel   = rospy.get_param("xy_vel", 0.2)
         z_vel    = rospy.get_param("z_vel", 0.2)
         yaw_vel  = rospy.get_param("yaw_vel", 0.2)
+        rot_step = rospy.get_param("rot_step", 0.02) # [rad] per key press
+        max_tilt = rospy.get_param("max_tilt", 0.5) # [rad] limit for each of roll and pitch
+
+        # the navigator only keeps the final target, so track it here and send absolute angles
+        target_roll = 0.0
+        target_pitch = 0.0
 
         motion_start_pub = rospy.Publisher('task_start', Empty, queue_size=1)
 
@@ -111,15 +145,18 @@ if __name__=="__main__":
 
                         if key == 'l':
                                 publishToAll(land_pubs)
+                                target_roll = target_pitch = 0.0 # the navigator resets the rotation on landing
                                 msg = "send land command"
                         if key == 'r':
                                 publishToAll(start_pubs)
                                 msg = "send motor-arming command"
                         if key == 'h':
                                 publishToAll(halt_pubs)
+                                target_roll = target_pitch = 0.0
                                 msg = "send motor-disarming (halt) command"
                         if key == 'f':
                                 publishToAll(force_landing_pubs)
+                                target_roll = target_pitch = 0.0
                                 msg = "send force landing command"
                         if key == 't':
                                 publishToAll(takeoff_pubs)
@@ -159,6 +196,21 @@ if __name__=="__main__":
                                 nav_msg.pos_z_nav_mode = FlightNav.VEL_MODE
                                 nav_msg.target_vel_z = -z_vel
                                 msg = publishNav(nav_pub, nav_msg, "send -z vel command")
+                        if key == 'i':
+                                target_pitch = clamp(target_pitch + rot_step, max_tilt)
+                                msg = publishRot(rot_pub, target_roll, target_pitch)
+                        if key == 'm':
+                                target_pitch = clamp(target_pitch - rot_step, max_tilt)
+                                msg = publishRot(rot_pub, target_roll, target_pitch)
+                        if key == 'j':
+                                target_roll = clamp(target_roll - rot_step, max_tilt)
+                                msg = publishRot(rot_pub, target_roll, target_pitch)
+                        if key == 'k':
+                                target_roll = clamp(target_roll + rot_step, max_tilt)
+                                msg = publishRot(rot_pub, target_roll, target_pitch)
+                        if key == 'o':
+                                target_roll = target_pitch = 0.0
+                                msg = publishRot(rot_pub, target_roll, target_pitch)
                         if key == '\x03':
                                 break
 

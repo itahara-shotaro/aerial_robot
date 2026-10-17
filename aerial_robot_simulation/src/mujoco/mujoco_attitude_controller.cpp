@@ -14,24 +14,19 @@ namespace flight_controllers
 
     int index = n.getNamespace().rfind('/');
     std::string robot_ns = n.getNamespace().substr(0, index);
-    robot_nh_ = ros::NodeHandle(robot_ns);
-    controller_core_->init(&robot_nh_, robot->getEstimatorPtr());
+    ros::NodeHandle n_robot = ros::NodeHandle(robot_ns);
+    controller_core_->init(&n_robot, robot->getEstimatorPtr());
 
-    /* use the ground truth attitude if the estimation mode is GROUND_TRUTH,
-       which is the same policy as the gazebo simulation */
     std::string full_param;
-    if (n.searchParam("estimation/mode", full_param))
-      {
-        int estimate_mode;
-        n.getParam(full_param, estimate_mode);
-        if(estimate_mode == aerial_robot_estimation::GROUND_TRUTH)
-          spinal_interface_->useGroundTruth(true);
-      }
+    int estimate_mode;
+    if (n.searchParam("estimation/mode", full_param) && n.getParam(full_param, estimate_mode))
+      spinal_interface_->useGroundTruth(estimate_mode == aerial_robot_estimation::GROUND_TRUTH);
     else
-      {
-        ROS_WARN_STREAM_NAMED("mujoco_attitude_controller", "can not find rosparam estimation/mode in ns " << n.getNamespace() << ", set ground truth mode");
-        spinal_interface_->useGroundTruth(true);
-      }
+    {
+      ROS_WARN_STREAM_NAMED("mujoco_attitude_controller", "Cannot find estimation/mode in "
+                            << n.getNamespace() << "; using ground truth");
+      spinal_interface_->useGroundTruth(true);
+    }
 
     return true;
 

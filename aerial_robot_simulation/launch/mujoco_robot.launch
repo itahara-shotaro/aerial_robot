@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<launch>
+  <!-- Per-robot controllers. The shared server loads the hardware plugins. -->
+  <arg name="robot_ns" default=""/>
+  <arg name="use_spinal" default="true"/>
+  <rosparam file="$(find aerial_robot_simulation)/config/Mujoco.yaml" command="load" ns="$(arg robot_ns)"/>
+  <group if="$(arg use_spinal)">
+    <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false"
+          output="screen" ns="$(arg robot_ns)" args="joint_state_controller attitude_controller"/>
+  </group>
+  <group unless="$(arg use_spinal)">
+    <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false"
+          output="screen" ns="$(arg robot_ns)" args="joint_state_controller"/>
+    <node pkg="aerial_robot_simulation" type="rotor_controller_spawner.py"
+          name="rotor_controller_spawner" output="screen" ns="$(arg robot_ns)"/>
+  </group>
+</launch>

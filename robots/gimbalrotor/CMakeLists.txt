@@ -8,8 +8,8 @@ find_package(catkin REQUIRED COMPONENTS
   aerial_robot_estimation
   aerial_robot_model
   aerial_robot_msgs
-  mujoco_ros_control
   spinal
+  mujoco_ros_utils
   pluginlib
   roscpp
   )
@@ -34,12 +34,7 @@ target_link_libraries(gimbalrotor_robot_model ${catkin_LIBRARIES})
 add_library(gimbalrotor_navigation src/gimbalrotor_navigation.cpp)
 target_link_libraries(gimbalrotor_navigation ${catkin_LIBRARIES})
 
-### convert urdf to mujoco model (mjcf)
-mujoco_model_convert(
-  ${PROJECT_SOURCE_DIR}
-  ${PROJECT_SOURCE_DIR}/config/mujoco_model.yaml)
-
-install(DIRECTORY config plugins launch
+install(DIRECTORY config plugins launch scripts
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
   USE_SOURCE_PERMISSIONS
   )
@@ -48,3 +43,13 @@ if(CATKIN_ENABLE_TESTING)
   find_package(rostest REQUIRED)
   add_subdirectory(test)
 endif()
+
+# Generate the upstream MuJoCo models, then select this robot's drag-free world.
+mujoco_model_convert(${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/config/mujoco_model.yaml)
+get_filename_component(GIMBALROTOR_MUJOCO_WORLD
+  "${PROJECT_SOURCE_DIR}/../../aerial_robot_simulation/config/mujoco/world.xml" REALPATH)
+add_custom_target(configure_gimbalrotor_mujoco ALL
+  COMMAND ${PYTHON_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/configure_mujoco_models.py
+    ${PROJECT_SOURCE_DIR} ${GIMBALROTOR_MUJOCO_WORLD}
+  DEPENDS generate_mujoco_model
+  WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})

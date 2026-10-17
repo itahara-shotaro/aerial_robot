@@ -130,6 +130,7 @@ class SceneTests(unittest.TestCase):
 
 class LaunchTests(unittest.TestCase):
     setUp = SceneTests.setUp
+    robot = SceneTests.robot
     def generate(self, robots, **extras):
         from multi_mujoco import generate
         scene = self.root / "scene.yaml"
@@ -143,12 +144,16 @@ class LaunchTests(unittest.TestCase):
 
     def test_launch_has_one_physics_owner_and_independent_bringups(self):
         launch = self.generate([self.entry("a"), self.entry("b")])
-        nodes = launch.findall("node")
-        self.assertEqual(len(nodes), 1)
-        self.assertEqual(nodes[0].get("ns"), "mujoco_world")
-        self.assertEqual(nodes[0].get("required"), "true")
+        self.assertFalse(launch.findall("node"))
         includes = launch.findall("include")
-        self.assertEqual(len(includes), 2)
+        self.assertEqual(len(includes), 3)
+        server = includes[-1]
+        self.assertTrue(server.get("file").endswith("/launch/mujoco_server.launch"))
+        server_args = {arg.get("name"): arg.get("value") for arg in server}
+        self.assertEqual(server_args["server_ns"], "mujoco_world")
+        self.assertEqual(server_args["real_time_factor"], "1.0")
+        initial = yaml.safe_load(Path(server_args["initial_joint_states"]).read_text())
+        self.assertEqual(initial, {"initial_joint_positions": {"joint_map": {}}})
         for include, ns in zip(includes, ["a", "b"]):
             args = {arg.get("name"): arg.get("value") for arg in include}
             self.assertEqual(args["robot_ns"], ns)
@@ -158,7 +163,101 @@ class LaunchTests(unittest.TestCase):
         params = {param.get("name"): param.get("value") for param in launch.findall("param")}
         self.assertEqual(params["/a/simulation/model_prefix"], "a/")
         self.assertEqual(params["/b/simulation/model_prefix"], "b/")
-        self.assertEqual(yaml.safe_load(launch.find("rosparam").text), ["/a", "/b"])
+        config = launch.find("rosparam")
+        self.assertEqual(config.get("param"), "/mujoco_world/MujocoPlugins")
+        plugins = yaml.safe_load(config.text)
+        hardware = [p for p in plugins if "hardware" in p]
+        self.assertEqual([p["robot_namespace"] for p in hardware], ["a", "b"])
+        self.assertTrue(all(p["hardware"]["type"] == "mujoco_ros_control/AerialRobotHWSim" for p in hardware))
+        self.assertEqual(sum(p["type"] == "aerial_robot_simulation/ThrustVisualizerPlugin" for p in plugins), 1)
+        self.assertFalse(any("MultiAerialRobotHWSim" in p["type"] for p in plugins))
+
+    def test_initial_servos_and_controller_config_are_per_robot(self):
+        config = self.root / "config/quad"
+        config.mkdir(parents=True)
+        (config / "Servo.yaml").write_text(yaml.safe_dump({"servo_controller": {
+            "gimbals": {"controller1": {"name": "gimbal1", "simulation": {"init_value": 0}},
+                        "controller2": {"name": "gimbal2", "simulation": {"init_value": 0.25}}}}}))
+        entries = [dict(namespace="a", package="gimbalrotor", model=str(self.model), prefix="left/"),
+                   dict(namespace="b", package="gimbalrotor", model=str(self.model), control_config="GimbalrotorLQIControl")]
+        launch = self.generate(entries, control_config="GimbalrotorControl")
+        includes = launch.findall("include")
+        for inc, expected in zip(includes, ["GimbalrotorControl", "GimbalrotorLQIControl"]):
+            args = {arg.get("name"): arg.get("value") for arg in inc}
+            self.assertEqual(args["control_config"], expected)
+        args = {arg.get("name"): arg.get("value") for arg in includes[-1]}
+        positions = yaml.safe_load(Path(args["initial_joint_states"]).read_text())["initial_joint_positions"]["joint_map"]
+        self.assertEqual(positions, {"left/gimbal1": "0.0", "left/gimbal2": "0.25", "b/gimbal1": "0.0", "b/gimbal2": "0.25"})
+
+    def test_servo_defaults_support_group_values_and_reject_boolean(self):
+        from multi_mujoco import initial_positions
+        config = self.root / "config/quad"
+        config.mkdir(parents=True)
+        servo = config / "Servo.yaml"
+        data = {"servo_controller": {"gimbals": {
+            "simulation": {"init_value": 1}, "controller1": {"name": "gimbal1"}}}}
+        servo.write_text(yaml.safe_dump(data))
+        robot = dict(package="gimbalrotor", airframe="quad", prefix="a/")
+        self.assertEqual(initial_positions(robot, self.root), {"a/gimbal1": "1.0"})
+        data["servo_controller"]["gimbals"]["simulation"]["init_value"] = True
+        servo.write_text(yaml.safe_dump(data))
+        with self.assertRaisesRegex(ValueError, "finite numbers"):
+            initial_positions(robot, self.root)
+
+    def test_rejects_invalid_robot_values_before_launch(self):
+        for overrides in ({"pos": None}, {"yaw": None}, {"prefix": ""},
+                          {"use_spinal": "false"}, {"package": "unknown"}, {"control_config": False}):
+            with self.assertRaises(ValueError):
+                self.generate([dict(self.entry("a"), **overrides)])
+        with self.assertRaisesRegex(ValueError, "control_config"):
+            self.generate([self.entry("a")], control_config=False)
+
+    def test_realtime_rejects_invalid_ratios(self):
+        from multi_mujoco import generate
+        for value in (0, -0.1, 2, float("nan"), float("inf")):
+            with self.assertRaisesRegex(ValueError, "real_time_factor"):
+                generate("unused.yaml", self.root, real_time_factor=value)
+
+    def test_rejects_removed_bridge_options(self):
+        for field in ("clock_pub_freq", "physics_substeps"):
+            with self.assertRaisesRegex(ValueError, "Unknown scene fields"):
+                self.generate([self.entry("a")], **{field: 1000})
+
+    def test_robot_side_and_wrapper_keep_controller_ownership(self):
+        directory = Path(__file__).resolve().parents[1] / "launch"
+        robot = ET.parse(str(directory / "mujoco_robot.launch")).getroot()
+        self.assertFalse(robot.findall("include"))
+        self.assertEqual(len(robot.findall(".//node[@name='controller_spawner']")), 2)
+        wrapper = ET.parse(str(directory / "mujoco.launch")).getroot()
+        self.assertEqual(len(wrapper.findall("include")), 2)
+        self.assertFalse(wrapper.findall(".//node"))
+        server = ET.parse(str(directory / "mujoco_server.launch")).getroot()
+        args = {arg.get("name"): arg.get("value") for arg in server.find("./group/include")}
+        self.assertEqual(args["realtime"], "$(arg real_time_factor)")
+
+    def test_engine_plugins_are_preloaded_into_the_server_only(self):
+        from multi_mujoco import engine_plugin_libraries
+        plugin_dir = self.root / "prefix/lib/mujoco/mujoco_plugin"
+        plugin_dir.mkdir(parents=True)
+        (plugin_dir / "libelasticity.so").write_text("")
+        fragment = self.root / "elastic.xml"
+        fragment.write_text('<mujoco><extension><plugin plugin="mujoco.elasticity.cable"/></extension></mujoco>')
+        with mock.patch.dict("os.environ", {"CMAKE_PREFIX_PATH": "%s:%s" % (self.root / "missing", self.root / "prefix")}):
+            launch = self.generate([self.entry("a")], attachments=[str(fragment)])
+        server = {arg.get("name"): arg.get("value") for arg in launch.findall("include")[-1]}
+        self.assertEqual(server["engine_plugins"], str(plugin_dir / "libelasticity.so"))
+        self.assertEqual(server["engine_plugins"], " ".join(engine_plugin_libraries(
+            merge_models(self.world, [self.robot("a/")], [fragment]), [str(self.root / "prefix")])))
+        self.assertEqual(engine_plugin_libraries(merge_models(self.world, [self.robot("a/")])), [])
+        with self.assertRaisesRegex(ValueError, "not found"):
+            engine_plugin_libraries(merge_models(self.world, [self.robot("a/")], [fragment]), [str(self.root)])
+        fragment.write_text('<mujoco><extension><plugin plugin="vendor.custom"/></extension></mujoco>')
+        with self.assertRaisesRegex(ValueError, "Unknown MuJoCo engine plugin"):
+            engine_plugin_libraries(merge_models(self.world, [self.robot("a/")], [fragment]), [str(self.root / "prefix")])
+        server_launch = ET.parse(str(Path(__file__).resolve().parents[1] / "launch/mujoco_server.launch")).getroot()
+        env = server_launch.find("./group/env")
+        self.assertEqual(env.get("name"), "LD_PRELOAD")
+        self.assertIn("engine_plugins", env.get("if"))
 
     def test_rejects_duplicate_namespaces_and_bad_scene_fields(self):
         with self.assertRaises(ValueError):

@@ -8,6 +8,6 @@
   </asset>
   <worldbody>
     <light directional="true" pos="0 0 10" dir="0 0 -1" diffuse=".8 .8 .8"/>
-    <geom name="floor" type="plane" size="0 0 .05" material="grid" contype="1" conaffinity="1"/>
+    <geom name="floor" type="plane" size="0 0 .05" material="grid" contype="1" conaffinity="1" condim="3" friction="3.0 3.0"/>
   </worldbody>
 </mujoco>

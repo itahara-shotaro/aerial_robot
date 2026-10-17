@@ -11,6 +11,10 @@
   <arg name="headless" default="True" />
   <arg name="worldtype" default="$(find aerial_robot_simulation)/gazebo_model/world/empty.world" />
   <arg name="launch_gazebo" default="True" />
+  <arg name="mujoco" default="False" />
+  <arg name="launch_mujoco" default="True" />
+  <arg name="use_spinal" default="True" />
+  <arg name="mujoco_real_time_factor" default="1.0" />
   <arg name="direct_model" default="False" />
   <arg name="direct_model_name" />
   <arg name="spawn_x" default="0.0"/>
@@ -26,9 +30,6 @@
   <!-- Root of this robot's TF tree.  Multi-robot flights give each robot its own
        (e.g. world_2) and bridge them with the base-station map ICP node. -->
   <arg name="global_frame" default="world" />
-  <arg name="mujoco" default="False" />
-  <arg name="launch_mujoco" default="True" />
-  <arg name="mujoco_real_time_factor" default="1.0" />
 
   ###########  Parameters  ###########
   <group ns="$(arg robot_ns)">
@@ -94,9 +95,7 @@
   </include >
 
   ###########  Servo Bridge  ###########
-  <node pkg="aerial_robot_model" type="servo_bridge_node" name="servo_bridge" ns="$(arg robot_ns)" output="screen" >
-    <param name="use_mujoco" value="true" if="$(arg mujoco)"/>
-  </node>
+  <node pkg="aerial_robot_model" type="servo_bridge_node" name="servo_bridge" ns="$(arg robot_ns)" output="screen" />
 
   ########## Simulation in Gazebo #########
   <include file="$(find aerial_robot_simulation)/launch/gazebo.launch" if = "$(eval arg('simulation') and not arg('real_machine') and not arg('mujoco'))" >
@@ -115,13 +114,18 @@
     <node pkg="aerial_robot_base" type="gazebo_killer.py" name="gazebo_killer"/>
   </group>
 
-  ########## Simulation in Mujoco #########
-  <include file="$(find aerial_robot_simulation)/launch/mujoco.launch" if="$(eval arg('simulation') and not arg('real_machine') and arg('mujoco'))" >
-    <arg name="robot_ns" value="$(arg robot_ns)" />
-    <arg name="headless" value="$(arg headless)"/>
-    <arg name="launch_mujoco" value="$(arg launch_mujoco)"/>
-    <arg name="mujoco_model" value="$(find gimbalrotor)/mujoco/$(arg airframe)/robot.xml"/>
-    <arg name="real_time_factor" value="$(arg mujoco_real_time_factor)"/>
-  </include>
-
+  <group if="$(eval arg('simulation') and not arg('real_machine') and arg('mujoco'))">
+    <include file="$(find aerial_robot_simulation)/launch/mujoco.launch" if="$(arg launch_mujoco)">
+      <arg name="robot_ns" value="$(arg robot_ns)" />
+      <arg name="headless" value="$(arg headless)" />
+      <arg name="mujoco_model" value="$(find gimbalrotor)/mujoco/$(arg airframe)/robot.xml" />
+      <arg name="initial_joint_states" value="$(find gimbalrotor)/mujoco/$(arg airframe)/initial_joint_states.yaml" />
+      <arg name="real_time_factor" value="$(arg mujoco_real_time_factor)" />
+      <arg name="use_spinal" value="$(arg use_spinal)" />
+    </include>
+    <include file="$(find aerial_robot_simulation)/launch/mujoco_robot.launch" unless="$(arg launch_mujoco)">
+      <arg name="robot_ns" value="$(arg robot_ns)" />
+      <arg name="use_spinal" value="$(arg use_spinal)" />
+    </include>
+  </group>
 </launch>

@@ -21,7 +21,6 @@ namespace flight_controllers
     void update(const ros::Time& time, const ros::Duration& period);
 
   private:
-    ros::NodeHandle robot_nh_;
     hardware_interface::MujocoSpinalInterface* spinal_interface_;
     boost::shared_ptr<FlightControl> controller_core_;
     int motor_num_;

@@ -16,11 +16,12 @@
   <build_depend>aerial_robot_estimation</build_depend>
   <build_depend>aerial_robot_msgs</build_depend>
   <build_depend>aerial_robot_model</build_depend>
-  <build_depend>controller_manager</build_depend>
   <build_depend>gazebo_ros_control</build_depend>
   <build_depend>kdl_parser</build_depend>
   <build_depend>liburdfdom-headers-dev</build_depend>
+  <build_depend>mujoco_ros</build_depend>
   <build_depend>mujoco_ros_control</build_depend>
+  <build_depend>mujoco_ros_sensors</build_depend>
   <build_depend>roscpp</build_depend>
   <build_depend>spinal</build_depend>
   <build_depend>tf</build_depend>
@@ -35,25 +36,27 @@
   <run_depend>gazebo_ros_control</run_depend>
   <run_depend>hector_gazebo_plugins</run_depend>
   <run_depend>kdl_parser</run_depend>
+  <run_depend>mujoco_ros</run_depend>
   <run_depend>mujoco_ros_control</run_depend>
+  <run_depend>mujoco_ros_sensors</run_depend>
   <run_depend>roscpp</run_depend>
+  <run_depend>roslaunch</run_depend>
+  <run_depend>python3-rospkg</run_depend>
+  <run_depend>python3-yaml</run_depend>
   <run_depend>ros_controllers</run_depend>
   <run_depend>spinal</run_depend>
   <run_depend>tf</run_depend>
 
-  <run_depend>python3-yaml</run_depend>
-  <run_depend>python3-rospkg</run_depend>
-  <run_depend>roslaunch</run_depend>
   <test_depend>python3-nose</test_depend>
-  <test_depend>rospy</test_depend>
-  <test_depend>controller_manager_msgs</test_depend>
+  <test_depend>rostest</test_depend>
+  <test_depend>xmlrpcpp</test_depend>
 
   <export>
-    <gazebo_ros_control plugin="${prefix}/aerial_robot_hw_sim_plugins.xml"/>
-    <controller_interface plugin="${prefix}/flight_controllers_plugins.xml"/>
-    <mujoco_ros_control plugin="${prefix}/mujoco_robot_hw_sim_plugin.xml"/>
-    <gazebo_ros gazebo_model_path="${prefix}/gazebo_model/models"/>
-    <gazebo_ros gazebo_media_path="${prefix}/gazebo_model/world"/>
+    <gazebo_ros_control plugin="${prefix}/plugins/aerial_robot_hw_sim_plugins.xml"/>
+    <controller_interface plugin="${prefix}/plugins/flight_controllers_plugins.xml"/>
+    <mujoco_ros plugin="${prefix}/plugins/mujoco_visualization_plugin.xml"/>
+    <mujoco_ros_control plugin="${prefix}/plugins/mujoco_robot_hw_sim_plugin.xml"/>
+    <controller_interface plugin="${prefix}/plugins/rotor_controllers_plugin.xml"/>
   </export>
 
 </package>

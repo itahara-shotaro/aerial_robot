@@ -27,11 +27,6 @@ namespace hardware_interface
     spinal_state_estimator_.update();
   }
 
-  void MujocoSpinalInterface::useGroundTruth(bool flag)
-  {
-    spinal_state_estimator_.getAttEstimator()->useGroundTruth(flag);
-  }
-
   void MujocoSpinalInterface::setImuValue(double acc_x, double acc_y, double acc_z, double gyro_x, double gyro_y, double gyro_z)
   {
     spinal_state_estimator_.getAttEstimator()->setAcc(acc_x, acc_y, acc_z);
@@ -41,6 +36,11 @@ namespace hardware_interface
   void MujocoSpinalInterface::setMagValue(double mag_x, double mag_y, double mag_z)
   {
     spinal_state_estimator_.getAttEstimator()->setMag(mag_x, mag_y, mag_z);
+  }
+
+  void MujocoSpinalInterface::useGroundTruth(bool flag)
+  {
+    spinal_state_estimator_.getAttEstimator()->useGroundTruth(flag);
   }
 
   void MujocoSpinalInterface::setGroundTruthStates(double q_x, double q_y, double q_z, double q_w,

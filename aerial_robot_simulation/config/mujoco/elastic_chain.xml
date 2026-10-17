@@ -22,9 +22,12 @@
          permanent contacts fighting the elasticity plugin, which is what made
          the rod itself visibly misbehave. At count="13" the pitch is 100 mm.
          The coarser chain also drops the stiffest bending mode from 240 Hz to
-         85 Hz (omega*dt 1.51 -> 0.54, explicit limit ~2), which matters because
-         mujoco_ros_control overrides opt.timestep to 1 ms and the step cannot
-         be shortened from this file. -->
+         85 Hz (omega*dt 1.51 -> 0.54, explicit limit ~2) at the scene world's
+         1 ms <option timestep>.
+
+         The chain itself (mass, bend, twist) behaves identically on MuJoCo
+         2.3.7 and 3.3.5: a joint-clamped cantilever of it settles to the same
+         tip droop on both. Only the end welds below had to be retuned. -->
     <composite prefix="noodle/" type="cable" curve="s" count="13 1 1"
                size="1.2" offset="-0.6 0 0.2" initial="free">
       <plugin plugin="mujoco.elasticity.cable">
@@ -44,47 +47,37 @@
   </worldbody>
   <equality>
     <!-- Clamped ends, matching the real mount. A weld transmits moment, which
-         couples both drones' attitude loops, and a DEFAULT weld does it through
-         an infinitely rigid clamp: the pair then diverges in symmetric roll
-         within ~2 s of leaving the ground. torquescale="1" is the culprit -
-         its units are METRES, so the default is a 1 m rotational lever on a
-         ~0.3 m airframe. It never flies, at any solref.
+         couples both drones' attitude loops.
 
-         These values come from a 4x4 sweep of torquescale x solref timeconst
-         (16 cells + repeats). The measured stability map was:
+         MuJoCo 3 retuning. MuJoCo 3.0 fixed weld efc_diagApprox (and 3.0.1 the
+         torquescale handling). A weld's constraint stiffness now scales with
+         the effective inertia of its LIGHTER body, here a 7.8 g end capsule,
+         and torquescale no longer sets the moment it transmits. The 2.3.7
+         values torquescale="0.1" solref="0.08 1" therefore turned into a pin
+         on 3.3.5. Measured with one end held and a 0.965 kg free body on the
+         other (axial k in N/m, rotational k in Nm/rad, x along the rod):
 
-               ts \ tc    0.02   0.03   0.04   0.08
-                  0.05     X      X      X      OK
-                  0.1      X      OK     OK     OK
-                  0.3      X      X      X      OK
-                  1.0      X      X      X      X
+                                       k_axial  k_lateral  k_rx   k_ry
+           2.3.7 ts=0.1 tc=0.08          22      0.66     0.20   0.29
+           3.3.5 ts=0.1 tc=0.08          22      0.42     6e-5   0.004
+           3.3.5 ts=1   tc=0.007       1500      0.64     0.18   0.27
 
-         Read it before retuning, because it is NOT monotonic: ts=0.05 is
-         *less* stable than ts=0.1, so a softer clamp is not a safer clamp.
-         (0.1, 0.08) is the only cell with all its neighbours stable, which is
-         why it is the default here; it is 4/4 reproducible. (0.1, 0.04) also
-         flies but sits on a knife edge - both its ts neighbours fail.
+         The last row is used here. Its rotational and lateral stiffness match
+         the clamp that was tuned and flown on 2.3.7, and k_ry is close to the
+         limit set by the rod's own bending. Its axial stiffness, 1.5 kN/m, is
+         close to the ~1.7 kN/m estimated for the real foam. On 2.3.7 the welds
+         made the rod axially soft (22 N/m), which was an artifact. Axial
+         stiffness goes as 1/timeconst^2 (tc=0.01 gives 0.94 kN/m). Keep
+         timeconst at or above 2 steps (0.002). The 2.3.7 torquescale x
+         timeconst stability map does not transfer to MuJoCo 3.
 
-         Stability is NOT governed by the clamp stiffness the pair represents:
-         (0.05, 0.04) and (0.1, 0.08) have identical ts/tc, hence identical
-         angular stiffness, yet the first fails 4/4 and the second is stable.
-         It is set by how the constraint is discretised - tc in units of the
-         1 ms step, and ts relative to solimp's default width of 0.001. The
-         transmitted moment, by contrast, does follow ts/tc: steady pitch trim
-         rises with it and saturates near 3 deg, where the rod's own bending
-         stiffness takes over from the clamp.
-
-         The result is still a clamp, not a pin: ~5 deg of pitch trim against
-         ~0.5 deg for connect, so the clamp moment is genuinely transmitted.
-
-         anchor is the far endpoint of the terminal capsule, size/(count-1) =
-         0.1 m at count="13"; update it whenever count changes. relpose is
-         deliberately omitted - MuJoCo's compiler fills it from qpos0, so the
-         weld starts satisfied instead of snapping the two frames together.
+         anchor is relative to body2, so "0 0 0" puts the weld point on each
+         drone's base_link origin, which is where the rod ends. relpose is
+         omitted, so MuJoCo fills it from qpos0 and the weld starts satisfied.
          Swap weld -> connect for pinned ends (force only, no clamp moment). -->
     <weld name="noodle_left" body1="noodle/B_first" body2="elastic1/base_link"
-          anchor="0 0 0" torquescale="0.1" solref="0.08 1"/>
+          anchor="0 0 0" torquescale="1" solref="0.007 1"/>
     <weld name="noodle_right" body1="noodle/B_last" body2="elastic2/base_link"
-          anchor="0.1 0 0" torquescale="0.1" solref="0.08 1"/>
+          anchor="0 0 0" torquescale="1" solref="0.007 1"/>
   </equality>
 </mujoco>

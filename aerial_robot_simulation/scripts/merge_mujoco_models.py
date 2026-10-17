@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compose generated aerial-robot MJCFs for MuJoCo 2.3 (no attach/replicate).
+"""Compose generated aerial-robot MJCFs for a shared MuJoCo world.
 
 Legacy CLI: merge_mujoco_models.py out.xml world.xml robot.xml:prefix:x,y,z[:yaw] ...
 Positions are world translations added to each model's original root pose;
@@ -23,7 +23,10 @@ ROBOT_SECTIONS = {"asset", "worldbody", "actuator", "sensor", "tendon", "equalit
 
 
 def numbers(value, count, label):
-    result = [float(x) for x in value]
+    try:
+        result = [float(x) for x in value]
+    except (TypeError, ValueError) as exc:
+        raise ValueError("%s must contain %d finite numbers" % (label, count)) from exc
     if len(result) != count or not all(math.isfinite(x) for x in result):
         raise ValueError("%s must contain %d finite numbers" % (label, count))
     return result
@@ -135,7 +138,10 @@ def merge_models(world_path, robots, attachments=(), robot_collisions=True):
                             elem.attrib.setdefault("class", default_class)
             section(output, "default").append(defaults)
         pos = numbers(spec.get("pos", (0, 0, 0)), 3, "pos")
-        yaw = float(spec.get("yaw", 0))
+        try:
+            yaw = float(spec.get("yaw", 0))
+        except (TypeError, ValueError) as exc:
+            raise ValueError("yaw must be finite") from exc
         if not math.isfinite(yaw):
             raise ValueError("yaw must be finite")
         c, s = math.cos(yaw), math.sin(yaw)
