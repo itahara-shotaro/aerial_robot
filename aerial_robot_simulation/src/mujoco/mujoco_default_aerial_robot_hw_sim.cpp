@@ -1,4 +1,5 @@
 #include <aerial_robot_simulation/mujoco/mujoco_default_aerial_robot_hw_sim.h>
+#include <set>
 
 namespace mujoco_ros::control
 {
@@ -9,23 +10,52 @@ bool DefaultAerialRobotHWSim::InitSim(const mjModel* m_ptr, mjData* d_ptr, mujoc
                                       std::vector<transmission_interface::TransmissionInfo> transmissions,
                                       bool ignore_actuators)
 {
+  model_nh.param<std::string>("simulation/model_prefix", mujoco_model_prefix_, "");
+  if (!urdf_model || !urdf_model->getRoot())
+  {
+    ROS_ERROR("MuJoCo aerial robot requires a URDF root link");
+    return false;
+  }
+  root_link_name_ = urdf_model->getRoot()->name;
+  const int root_body_id = mj_name2id(m_ptr, mjOBJ_BODY, (mujoco_model_prefix_ + root_link_name_).c_str());
+  if (root_body_id < 0 || m_ptr->body_jntnum[root_body_id] != 1 ||
+      m_ptr->jnt_type[m_ptr->body_jntadr[root_body_id]] != mjJNT_FREE)
+  {
+    ROS_ERROR_STREAM("MuJoCo robot root must have one free joint: " << mujoco_model_prefix_ + root_link_name_);
+    return false;
+  }
+  const int root_joint_id = m_ptr->body_jntadr[root_body_id];
+  root_qpos_adr_ = m_ptr->jnt_qposadr[root_joint_id];
+  root_dof_adr_ = m_ptr->jnt_dofadr[root_joint_id];
+
   std::vector<transmission_interface::TransmissionInfo> standard_transmissions;
   std::vector<transmission_interface::TransmissionInfo> rotor_transmissions;
 
+  std::set<std::string> rotor_joints;
   /* separate rotor transmissions and standard transmissions */
   for (const auto& trans : transmissions)
   {
     bool is_rotor = false;
-    for (const auto& hw_iface : trans.actuators_[0].hardware_interfaces_)
-    {
-      if (hw_iface == "RotorInterface" || hw_iface == "hardware_interface/RotorInterface")
-      {
-        is_rotor = true;
-        break;
-      }
-    }
+    for (const auto& actuator : trans.actuators_)
+      for (const auto& hw_iface : actuator.hardware_interfaces_)
+        if (hw_iface == "RotorInterface" || hw_iface == "hardware_interface/RotorInterface")
+          is_rotor = true;
+    for (const auto& joint : trans.joints_)
+      for (const auto& hw_iface : joint.hardware_interfaces_)
+        if (hw_iface == "RotorInterface" || hw_iface == "hardware_interface/RotorInterface")
+          is_rotor = true;
     if (is_rotor)
     {
+      if (trans.joints_.size() != 1 || trans.actuators_.size() != 1)
+      {
+        ROS_ERROR("A rotor transmission must have exactly one joint and actuator");
+        return false;
+      }
+      if (!rotor_joints.insert(trans.joints_[0].name_).second)
+      {
+        ROS_ERROR_STREAM("Duplicate MuJoCo rotor transmission: " << trans.joints_[0].name_);
+        return false;
+      }
       rotor_transmissions.push_back(trans);
     }
     else
@@ -33,12 +63,14 @@ bool DefaultAerialRobotHWSim::InitSim(const mjModel* m_ptr, mjData* d_ptr, mujoc
   }
 
   /* Initialize standard joint handlers */
-  DefaultRobotHWSim::InitSim(m_ptr, d_ptr, mujoco_env_ptr, robot_namespace, model_nh, urdf_model,
-                             standard_transmissions);
+  if (!DefaultRobotHWSim::InitSim(m_ptr, d_ptr, mujoco_env_ptr, robot_namespace, model_nh, urdf_model,
+                                 standard_transmissions, ignore_actuators))
+    return false;
 
   /* Initialize rotor handlers */
   size_t num_rotors = rotor_transmissions.size();
   rotor_names_.resize(num_rotors);
+  rotor_actuator_ids_.resize(num_rotors);
   rotor_cmd_.resize(num_rotors);
   rotor_pos_.resize(num_rotors);
   rotor_vel_.resize(num_rotors);
@@ -49,6 +81,14 @@ bool DefaultAerialRobotHWSim::InitSim(const mjModel* m_ptr, mjData* d_ptr, mujoc
 
     std::string joint_name = transmission.joints_[0].name_;
 
+    const std::string actuator_name = mujoco_model_prefix_ + joint_name;
+    const int actuator_id = mj_name2id(m_ptr_, mjOBJ_ACTUATOR, actuator_name.c_str());
+    if (actuator_id < 0)
+    {
+      ROS_ERROR_STREAM("Missing MuJoCo rotor actuator: " << actuator_name);
+      return false;
+    }
+    rotor_actuator_ids_.at(i) = actuator_id;
     rotor_names_.at(i) = joint_name;
     rotor_cmd_.at(i) = 0.0;
     rotor_pos_.at(i) = 0.0;
@@ -73,7 +113,6 @@ bool DefaultAerialRobotHWSim::InitSim(const mjModel* m_ptr, mjData* d_ptr, mujoc
   simulation_nh.param("tf_broadcast_rate", tf_broadcast_rate_, 0.01);  // [sec]
   simulation_nh.param("publish_odom", publish_odom_, true);
   simulation_nh.param("publish_tf", publish_tf_, false);
-  root_link_name_ = mj_id2name(m_ptr_, mjtObj_::mjOBJ_BODY, 1);  // 0: world
   simulation_nh.param("root_link_name", root_link_name_,
                       root_link_name_);  // overwrite root link name if specified in yaml
   odom_pub_last_time_ = 0.0;
@@ -113,7 +152,7 @@ void DefaultAerialRobotHWSim::WriteSim(ros::Time time, ros::Duration period)
   /* rotor part */
   for (size_t i = 0; i < rotor_names_.size(); i++)
   {
-    int rotor_id = mj_name2id(m_ptr_, mjtObj_::mjOBJ_ACTUATOR, rotor_names_[i].c_str());
+    const int rotor_id = rotor_actuator_ids_.at(i);
     if (std::isfinite(rotor_cmd_.at(i)))
       d_ptr_->ctrl[rotor_id] = rotor_cmd_.at(i);
   }
@@ -122,42 +161,45 @@ void DefaultAerialRobotHWSim::WriteSim(ros::Time time, ros::Duration period)
 void DefaultAerialRobotHWSim::publishOdometry(ros::Time time)
 {
   nav_msgs::Odometry odom_msg;
-  tf::Vector3 v_global(d_ptr_->qvel[0], d_ptr_->qvel[1], d_ptr_->qvel[2]);
-  tf::Quaternion q(d_ptr_->qpos[4], d_ptr_->qpos[5], d_ptr_->qpos[6], d_ptr_->qpos[3]);
+  const mjtNum* qpos = d_ptr_->qpos + root_qpos_adr_;
+  const mjtNum* qvel = d_ptr_->qvel + root_dof_adr_;
+  tf::Vector3 v_global(qvel[0], qvel[1], qvel[2]);
+  tf::Quaternion q(qpos[4], qpos[5], qpos[6], qpos[3]);
   tf::Vector3 v_local = tf::quatRotate(q.inverse(), v_global);
 
   odom_msg.header.stamp = time;
   odom_msg.header.frame_id = "world";
-  odom_msg.child_frame_id = tf::resolve(robot_ns_, mj_id2name(m_ptr_, mjtObj_::mjOBJ_BODY, 1));
-  odom_msg.pose.pose.position.x = d_ptr_->qpos[0];
-  odom_msg.pose.pose.position.y = d_ptr_->qpos[1];
-  odom_msg.pose.pose.position.z = d_ptr_->qpos[2];
-  odom_msg.pose.pose.orientation.w = d_ptr_->qpos[3];
-  odom_msg.pose.pose.orientation.x = d_ptr_->qpos[4];
-  odom_msg.pose.pose.orientation.y = d_ptr_->qpos[5];
-  odom_msg.pose.pose.orientation.z = d_ptr_->qpos[6];
+  odom_msg.child_frame_id = tf::resolve(robot_ns_, root_link_name_);
+  odom_msg.pose.pose.position.x = qpos[0];
+  odom_msg.pose.pose.position.y = qpos[1];
+  odom_msg.pose.pose.position.z = qpos[2];
+  odom_msg.pose.pose.orientation.w = qpos[3];
+  odom_msg.pose.pose.orientation.x = qpos[4];
+  odom_msg.pose.pose.orientation.y = qpos[5];
+  odom_msg.pose.pose.orientation.z = qpos[6];
   odom_msg.twist.twist.linear.x = v_local.x();
   odom_msg.twist.twist.linear.y = v_local.y();
   odom_msg.twist.twist.linear.z = v_local.z();
-  odom_msg.twist.twist.angular.x = d_ptr_->qvel[3];
-  odom_msg.twist.twist.angular.y = d_ptr_->qvel[4];
-  odom_msg.twist.twist.angular.z = d_ptr_->qvel[5];
+  odom_msg.twist.twist.angular.x = qvel[3];
+  odom_msg.twist.twist.angular.y = qvel[4];
+  odom_msg.twist.twist.angular.z = qvel[5];
   odom_pub_.publish(odom_msg);
 }
 
 void DefaultAerialRobotHWSim::publishTF(ros::Time time)
 {
   geometry_msgs::TransformStamped root_pose_transform;
+  const mjtNum* qpos = d_ptr_->qpos + root_qpos_adr_;
   root_pose_transform.header.stamp = time;
   root_pose_transform.header.frame_id = "world";
   root_pose_transform.child_frame_id = tf::resolve(robot_ns_, root_link_name_);
-  root_pose_transform.transform.translation.x = d_ptr_->qpos[0];
-  root_pose_transform.transform.translation.y = d_ptr_->qpos[1];
-  root_pose_transform.transform.translation.z = d_ptr_->qpos[2];
-  root_pose_transform.transform.rotation.w = d_ptr_->qpos[3];
-  root_pose_transform.transform.rotation.x = d_ptr_->qpos[4];
-  root_pose_transform.transform.rotation.y = d_ptr_->qpos[5];
-  root_pose_transform.transform.rotation.z = d_ptr_->qpos[6];
+  root_pose_transform.transform.translation.x = qpos[0];
+  root_pose_transform.transform.translation.y = qpos[1];
+  root_pose_transform.transform.translation.z = qpos[2];
+  root_pose_transform.transform.rotation.w = qpos[3];
+  root_pose_transform.transform.rotation.x = qpos[4];
+  root_pose_transform.transform.rotation.y = qpos[5];
+  root_pose_transform.transform.rotation.z = qpos[6];
   tf_broadcaster_.sendTransform(root_pose_transform);
 }
 

@@ -38,6 +38,11 @@ namespace hardware_interface
     spinal_state_estimator_.getAttEstimator()->setMag(mag_x, mag_y, mag_z);
   }
 
+  void MujocoSpinalInterface::useGroundTruth(bool flag)
+  {
+    spinal_state_estimator_.getAttEstimator()->useGroundTruth(flag);
+  }
+
   void MujocoSpinalInterface::setGroundTruthStates(double q_x, double q_y, double q_z, double q_w,
                                                    double w_x, double w_y, double w_z)
   {

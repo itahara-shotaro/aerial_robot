@@ -1,0 +1,13 @@
+<mujoco model="world">
+  <compiler angle="radian"/>
+  <!-- No fluid drag: virtual URDF links have artificial simulation inertia. -->
+  <option timestep="0.001" gravity="0 0 -9.81" density="0" viscosity="0" integrator="implicit"/>
+  <asset>
+    <texture name="grid" type="2d" builtin="checker" width="256" height="256" rgb1=".1 .2 .3" rgb2=".2 .3 .4"/>
+    <material name="grid" texture="grid" texrepeat="1 1" texuniform="true"/>
+  </asset>
+  <worldbody>
+    <light directional="true" pos="0 0 10" dir="0 0 -1" diffuse=".8 .8 .8"/>
+    <geom name="floor" type="plane" size="0 0 .05" material="grid" contype="1" conaffinity="1" condim="3" friction="3.0 3.0"/>
+  </worldbody>
+</mujoco>

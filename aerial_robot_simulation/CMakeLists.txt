@@ -83,3 +83,28 @@ install(DIRECTORY scripts plugins
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
   USE_SOURCE_PERMISSIONS
 )
+
+catkin_install_python(PROGRAMS
+  scripts/merge_mujoco_models.py
+  scripts/multi_mujoco.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+install(DIRECTORY launch config
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+)
+
+if(CATKIN_ENABLE_TESTING)
+  find_package(rostest REQUIRED)
+  add_rostest_gtest(test_mujoco_hardware_isolation
+    test/mujoco_hardware_isolation.test test/test_mujoco_hardware_isolation.cpp)
+  if(TARGET test_mujoco_hardware_isolation)
+    target_link_libraries(test_mujoco_hardware_isolation mujoco_aerial_robot_hw_sim ${catkin_LIBRARIES})
+  endif()
+  catkin_add_nosetests(test/test_mujoco_scene.py)
+  find_package(xmlrpcpp REQUIRED)
+  catkin_add_gtest(test_initial_joint_states test/test_initial_joint_states.cpp)
+  if(TARGET test_initial_joint_states)
+    target_link_libraries(test_initial_joint_states ${xmlrpcpp_LIBRARIES})
+  endif()
+endif()

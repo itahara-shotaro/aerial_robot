@@ -1,0 +1,7 @@
+package:
+  ["gimbalrotor"]
+
+gimbalrotor:
+  input: ["robots/ynltilt/gimbalrotor.urdf.xacro", "robots/quad/gimbalrotor.urdf.xacro"]
+  filename: ["ynltilt", "quad"]
+  meshdir: "urdf"

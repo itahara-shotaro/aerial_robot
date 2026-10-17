@@ -1,0 +1,4 @@
+<launch>
+  <test test-name="mujoco_hardware_isolation" pkg="aerial_robot_simulation"
+        type="test_mujoco_hardware_isolation" time-limit="30" />
+</launch>

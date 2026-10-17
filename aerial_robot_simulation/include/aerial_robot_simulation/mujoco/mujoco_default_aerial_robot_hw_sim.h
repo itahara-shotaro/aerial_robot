@@ -37,6 +37,10 @@ private:
   tf2_ros::TransformBroadcaster tf_broadcaster_;
 
   std::string robot_ns_;
+  std::string mujoco_model_prefix_;
+  int root_qpos_adr_ = -1;
+  int root_dof_adr_ = -1;
+  std::vector<int> rotor_actuator_ids_;
 
   std::vector<std::string> rotor_names_;
   std::vector<double> rotor_cmd_;

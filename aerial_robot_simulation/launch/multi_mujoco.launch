@@ -1,0 +1,8 @@
+<launch>
+  <arg name="scene" default="$(find aerial_robot_simulation)/config/mujoco/independent.yaml"/>
+  <arg name="headless" default="true"/>
+  <arg name="real_time_factor" default="1.0"/>
+  <arg name="control_config" default=""/>
+  <node pkg="aerial_robot_simulation" type="multi_mujoco.py" name="multi_mujoco" output="screen" required="true"
+        args="--scene '$(arg scene)' --headless $(arg headless) --real-time-factor $(arg real_time_factor) --control-config '$(arg control_config)'"/>
+</launch>

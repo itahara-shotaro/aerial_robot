@@ -1,0 +1,9 @@
+# Each position is a world translation of the generated model's root pose.
+robots:
+  - namespace: gimbal1
+    package: gimbalrotor
+    airframe: quad
+    pos: [-1.0, 0, 0]
+  - namespace: mini1
+    package: mini_quadrotor
+    pos: [1.0, 0, 0]

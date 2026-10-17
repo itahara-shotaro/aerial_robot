@@ -40,9 +40,16 @@
   <run_depend>mujoco_ros_control</run_depend>
   <run_depend>mujoco_ros_sensors</run_depend>
   <run_depend>roscpp</run_depend>
+  <run_depend>roslaunch</run_depend>
+  <run_depend>python3-rospkg</run_depend>
+  <run_depend>python3-yaml</run_depend>
   <run_depend>ros_controllers</run_depend>
   <run_depend>spinal</run_depend>
   <run_depend>tf</run_depend>
+
+  <test_depend>python3-nose</test_depend>
+  <test_depend>rostest</test_depend>
+  <test_depend>xmlrpcpp</test_depend>
 
   <export>
     <gazebo_ros_control plugin="${prefix}/plugins/aerial_robot_hw_sim_plugins.xml"/>

@@ -23,6 +23,7 @@ namespace hardware_interface
                               double w_x, double w_y, double w_z);
 
     void stateEstimate();
+    void useGroundTruth(bool flag);
     inline void onGround(bool flag) { on_ground_ = flag; }
     StateEstimate* getEstimatorPtr() {return &spinal_state_estimator_;}
     std::string getName() const{return "";}

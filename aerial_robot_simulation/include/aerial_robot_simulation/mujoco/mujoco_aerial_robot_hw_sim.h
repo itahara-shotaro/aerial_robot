@@ -27,7 +27,10 @@ public:
 protected:
   hardware_interface::MujocoSpinalInterface spinal_interface_;
 
-  std::vector<std::string> rotor_list_;
+  std::string mujoco_model_prefix_;
+  int fc_id_ = -1;
+  int sensor_ids_[3] = {-1, -1, -1};
+  std::vector<int> rotor_actuator_ids_;
   ros::Publisher ground_truth_pub_;
   ros::Publisher mocap_pub_;
   double ground_truth_pub_rate_;
@@ -36,8 +39,10 @@ protected:
   double ground_truth_pos_noise_, ground_truth_vel_noise_, ground_truth_rot_noise_, ground_truth_angular_noise_;
   double ground_truth_rot_drift_, ground_truth_vel_drift_, ground_truth_angular_drift_;
   double ground_truth_rot_drift_frequency_, ground_truth_vel_drift_frequency_, ground_truth_angular_drift_frequency_;
-  double joint_state_pub_rate_ = 0.02;
+  double ground_truth_rot_curr_drift_[3] = {};
+  double ground_truth_vel_curr_drift_[3] = {};
+  double ground_truth_angular_curr_drift_[3] = {};
 
-  ros::Time last_mocap_time_;
+  ros::Time last_ground_truth_time_, last_mocap_time_;
 };
 }  // namespace mujoco_ros_control

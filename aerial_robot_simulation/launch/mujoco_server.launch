@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<launch>
+  <!-- One physics and /clock owner, independent of the robot namespaces. -->
+  <arg name="server_ns" default="mujoco_world"/>
+  <arg name="mujoco_model"/>
+  <arg name="initial_joint_states" default=""/>
+  <arg name="headless" default="false"/>
+  <arg name="no_render" default="$(arg headless)"/>
+  <arg name="real_time_factor" default="1.0"/>
+  <arg name="mujoco_threads" default="1"/>
+  <arg name="mujoco_plugin_config" default=""/>
+  <group ns="$(arg server_ns)">
+    <include file="$(find mujoco_ros)/launch/launch_server.launch">
+      <arg name="ns" value="$(arg server_ns)"/>
+      <arg name="headless" value="$(arg headless)"/>
+      <arg name="no_render" value="$(arg no_render)"/>
+      <arg name="modelfile" value="$(arg mujoco_model)"/>
+      <arg name="use_sim_time" value="true"/>
+      <arg name="unpause" value="true"/>
+      <arg name="realtime" value="$(arg real_time_factor)"/>
+      <arg name="initial_joint_states" value="$(arg initial_joint_states)" unless="$(eval initial_joint_states == '')"/>
+      <arg name="mujoco_threads" value="$(arg mujoco_threads)"/>
+      <arg name="mujoco_plugin_config" value="$(arg mujoco_plugin_config)"/>
+    </include>
+  </group>
+</launch>

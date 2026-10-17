@@ -199,6 +199,10 @@
       <axis xyz="1 0 0"/>
       <dynamics damping="0.8" friction="0.0"/>
     </joint>
+    <!-- This prevents NaN in Gazebo when virtual link inertia is too small -->
+    <gazebo reference="gimbal${self}">
+      <implicitSpringDamper>true</implicitSpringDamper>
+    </gazebo>
 
     <transmission name="joint_tran${self}">
       <type>transmission_interface/SimpleTransmission</type>

@@ -33,7 +33,7 @@
       <visual>
         <origin xyz="0 0 -0.0165" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://gimbalrotor/urdf/quad/mesh/base_link.STL"/>
+          <mesh filename="package://gimbalrotor/urdf/quad/mesh/base_link.stl"/>
         </geometry>
       </visual>
       <collision>
@@ -76,7 +76,7 @@
       <visual>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://gimbalrotor/urdf/quad/mesh/rotor_arm.STL"/>
+          <mesh filename="package://gimbalrotor/urdf/quad/mesh/rotor_arm.stl"/>
         </geometry>
       </visual>
       <collision>
@@ -105,7 +105,7 @@
       <visual>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://gimbalrotor/urdf/quad/mesh/rotor_arm.STL"/>
+          <mesh filename="package://gimbalrotor/urdf/quad/mesh/rotor_arm.stl"/>
         </geometry>
       </visual>
       <collision>
@@ -134,7 +134,7 @@
       <visual>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://gimbalrotor/urdf/quad/mesh/rotor_arm.STL"/>
+          <mesh filename="package://gimbalrotor/urdf/quad/mesh/rotor_arm.stl"/>
         </geometry>
       </visual>
       <collision>
@@ -163,7 +163,7 @@
       <visual>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://gimbalrotor/urdf/quad/mesh/rotor_arm.STL"/>
+          <mesh filename="package://gimbalrotor/urdf/quad/mesh/rotor_arm.stl"/>
         </geometry>
       </visual>
       <collision>
@@ -203,7 +203,7 @@
       <visual>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://gimbalrotor/urdf/quad/mesh/rotor_module.STL"/>
+          <mesh filename="package://gimbalrotor/urdf/quad/mesh/rotor_module.stl"/>
         </geometry>
       </visual>
     </link>
@@ -227,9 +227,9 @@
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <mass value="0.00001"/>
         <inertia
-            ixx="0.001" ixy="0.0" ixz="0.0"
-            iyy="0.001" iyz="0.0"
-            izz="0.001"/>
+            ixx="0.000001" ixy="0.0" ixz="0.0"
+            iyy="0.000001" iyz="0.0"
+            izz="0.000001"/>
       </inertial>
     </link>
     <xacro:damping_factor link="thrust${self}"/>
@@ -245,6 +245,10 @@
       <axis xyz="1 0 0"/>
       <dynamics damping="0.8" friction="0.0"/>
     </joint>
+    <!-- This prevents NaN in Gazebo when virtual link inertia is too small -->
+    <gazebo reference="gimbal${self}">
+      <implicitSpringDamper>true</implicitSpringDamper>
+    </gazebo>
 
     <transmission name="joint_tran${self}">
       <type>transmission_interface/SimpleTransmission</type>
