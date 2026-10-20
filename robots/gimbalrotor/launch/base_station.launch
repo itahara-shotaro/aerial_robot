@@ -1,0 +1,7 @@
+<launch>
+    <!-- Cloudini decode -->
+     <include file="$(find cloudini_ros1)/launch/cloudini_decoder.launch" />
+    
+    <!-- Relative TF-->
+     <include file="$(find map_icp)/launch/icp_map_alignment.launch.xml" />
+</launch>
