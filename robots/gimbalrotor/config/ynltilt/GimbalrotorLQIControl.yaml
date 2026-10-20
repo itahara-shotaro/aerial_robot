@@ -18,6 +18,10 @@ controller:
     limit_p: 12.0
     limit_i: 12.0
     limit_d: 12.0
+    # Follower on a stiff connection: no position integral along the clamp (rod) axes, given as flattened
+    # baselink-frame vectors. Leave empty on the leader and on solo flights (= plain PID integral).
+    # integral_null_axes: [1.0, 0.0, 0.0]
+    # integral_null_tau: 1.5  # [s] decay of the axial integral already stored
 
   # z errors feed the per-input LQI z gains; limit_sum clamps each rotor's thrust magnitude
   z:

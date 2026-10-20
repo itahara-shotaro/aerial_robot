@@ -36,6 +36,7 @@
 #pragma once
 
 #include <aerial_robot_control/control/base/base.h>
+#include <aerial_robot_control/control/utils/integral_projection.h>
 #include <aerial_robot_control/control/utils/pid.h>
 #include <aerial_robot_control/PIDConfig.h>
 #include <aerial_robot_msgs/DynamicReconfigureLevels.h>
@@ -88,8 +89,13 @@ namespace aerial_robot_control
     tf::Vector3 rpy_, target_rpy_;
     tf::Vector3 omega_, target_omega_;
 
+    /* baselink-frame axes along which the xy position integral is not accumulated (empty: off) */
+    std::vector<Eigen::Vector3d> integral_null_axes_body_;
+    double integral_null_tau_;
+
     virtual void controlCore();
     virtual void sendCmd();
+    void projectXyIntegral(double du);
 
 
     void cfgPidCallback(aerial_robot_control::PIDConfig &config, uint32_t level, std::vector<int> controller_indices);

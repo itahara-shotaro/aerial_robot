@@ -47,7 +47,8 @@ namespace aerial_robot_control
     rpy_(0,0,0), target_rpy_(0,0,0),
     target_acc_(0,0,0),
     target_omega_(0,0,0),
-    start_rp_integration_(false)
+    start_rp_integration_(false),
+    integral_null_tau_(1.5)
   {
     pid_msg_.x.total.resize(1);
     pid_msg_.x.p_term.resize(1);
@@ -137,6 +138,43 @@ namespace aerial_robot_control
         pid_controllers_.push_back(PID("y", p_gain, i_gain, d_gain, limit_sum, limit_p, limit_i, limit_d, limit_err_p, limit_err_i, limit_err_d));
         pid_reconf_servers_.push_back(boost::make_shared<PidControlDynamicConfig>(y_nh));
         pid_reconf_servers_.back()->setCallback(boost::bind(&PoseLinearController::cfgPidCallback, this, _1, _2, std::vector<int>(1, Y)));
+      }
+
+    /* xy integral null axes: flattened baselink-frame vectors, e.g. the clamp axis of a follower on a stiff connection */
+    std::vector<double> null_axes;
+    xy_nh.param("integral_null_axes", null_axes, std::vector<double>());
+    getParam<double>(xy_nh, "integral_null_tau", integral_null_tau_, 1.5);
+    integral_null_axes_body_.clear();
+    if(null_axes.size() % 3 != 0)
+      {
+        ROS_WARN("[%s] xy/integral_null_axes must be a flattened list of 3D vectors (got %zu values), disabled",
+                 nh_.getNamespace().c_str(), null_axes.size());
+      }
+    else
+      {
+        for(size_t i = 0; i < null_axes.size(); i += 3)
+          {
+            Eigen::Vector3d axis(null_axes.at(i), null_axes.at(i + 1), null_axes.at(i + 2));
+            if(!(axis.norm() > 1e-6))
+              {
+                ROS_WARN("[%s] xy/integral_null_axes contains a zero vector, disabled", nh_.getNamespace().c_str());
+                integral_null_axes_body_.clear();
+                break;
+              }
+            integral_null_axes_body_.push_back(axis.normalized());
+          }
+      }
+    if(!integral_null_axes_body_.empty())
+      {
+        if(integral_null_tau_ <= 0)
+          {
+            ROS_WARN("[%s] xy/integral_null_tau must be positive (got %f), use 1.5 s", nh_.getNamespace().c_str(), integral_null_tau_);
+            integral_null_tau_ = 1.5;
+          }
+        std::stringstream ss;
+        for(const auto& axis: integral_null_axes_body_) ss << " [" << axis.transpose() << "]";
+        ROS_INFO("[%s] no xy position integral along baselink axes%s (decay tau %f s)",
+                 nh_.getNamespace().c_str(), ss.str().c_str(), integral_null_tau_);
       }
 
     /* z */
@@ -250,6 +288,8 @@ namespace aerial_robot_control
         break;
       }
 
+    projectXyIntegral(du);
+
     if(navigator_->getForceLandingFlag())
       {
         pid_controllers_.at(X).reset();
@@ -348,6 +388,41 @@ namespace aerial_robot_control
     pid_msg_.yaw.err_p = err_yaw;
     pid_msg_.yaw.target_d = target_omega_.z();
     pid_msg_.yaw.err_d = target_omega_.z() - omega_.z();
+  }
+
+  void PoseLinearController::projectXyIntegral(double du)
+  {
+    if(integral_null_axes_body_.empty()) return;
+
+    /* the clamp is fixed to the baselink, so follow its current orientation */
+    tf::Matrix3x3 baselink_rot = estimator_->getOrientation(Frame::BASELINK, estimate_mode_);
+    Eigen::Matrix3d rot;
+    for(int i = 0; i < 3; i++)
+      for(int j = 0; j < 3; j++)
+        rot(i, j) = baselink_rot[i][j];
+
+    int skipped = 0;
+    std::vector<Eigen::Vector2d> axes = integral_projection::horizontalAxes(rot, integral_null_axes_body_, 0.5, &skipped);
+    if(skipped > 0)
+      ROS_WARN_THROTTLE(1.0, "[%s] %d xy integral null axes are mostly vertical, ignored",
+                        nh_.getNamespace().c_str(), skipped);
+    if(axes.empty()) return;
+    if(integral_projection::orthonormalBasis(axes).size() == 2)
+      ROS_WARN_ONCE("[%s] xy integral null axes span the horizontal plane, no xy position integral at all",
+                    nh_.getNamespace().c_str());
+
+    /* in i-term space, since the x and y i_gains may differ */
+    PID& pid_x = pid_controllers_.at(X);
+    PID& pid_y = pid_controllers_.at(Y);
+    Eigen::Vector2d err_i = integral_projection::projectOutErrI(Eigen::Vector2d(pid_x.getErrI(), pid_y.getErrI()),
+                                                                Eigen::Vector2d(pid_x.getPrevErrI(), pid_y.getPrevErrI()),
+                                                                Eigen::Vector2d(pid_x.getIGain(), pid_y.getIGain()),
+                                                                axes, du / integral_null_tau_);
+
+    /* result() was already computed in update(), so this takes effect from the next cycle. getPrevErrI() is
+       untouched, so a later setErrI(getPrevErrI()) anti-windup still reverts to last cycle's projected value. */
+    pid_x.setErrI(err_i.x());
+    pid_y.setErrI(err_i.y());
   }
 
   void PoseLinearController::sendCmd()

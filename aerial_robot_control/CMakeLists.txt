@@ -90,6 +90,10 @@ target_link_libraries (trajectory_generation_node ${catkin_LIBRARIES} trajectory
 
 
 
+if(CATKIN_ENABLE_TESTING)
+  catkin_add_gtest(test_integral_projection test/test_integral_projection.cpp)
+endif()
+
 install(DIRECTORY include/${PROJECT_NAME}/
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})
 
