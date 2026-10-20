@@ -352,9 +352,15 @@ void GimbalLQIController::controlCore()
       tf::Vector3 target_acc_w(pid_controllers_.at(X).result(), pid_controllers_.at(Y).result(), 0);
       tf::Vector3 target_acc_dash = (tf::Matrix3x3(tf::createQuaternionFromYaw(rpy_.z()))).inverse() * target_acc_w;
 
+      /* The LQ gains know nothing about x/y, so the z term also produces a lateral force whenever the
+         rotor axes are tilted w.r.t. the CoG frame, e.g. after a commanded baselink rotation (about
+         g*sin(tilt)). Cancel it feed-forward, or the position loop only sees it as an error and
+         removes it through its slow integrator. */
+      Eigen::Vector2d z_term_lateral_acc = alloc.topRows(2) * target_thrust_z_term;
+
       Eigen::VectorXd target_wrench_acc = Eigen::VectorXd::Zero(6);
-      target_wrench_acc(0) = target_acc_dash.x() - rpy_.y() * acc_z;
-      target_wrench_acc(1) = target_acc_dash.y() + rpy_.x() * acc_z;
+      target_wrench_acc(0) = target_acc_dash.x() - rpy_.y() * acc_z - z_term_lateral_acc.x();
+      target_wrench_acc(1) = target_acc_dash.y() + rpy_.x() * acc_z - z_term_lateral_acc.y();
       target_vectoring_f_xy = aerial_robot_model::pseudoinverse(alloc) * target_wrench_acc;
     }
 
