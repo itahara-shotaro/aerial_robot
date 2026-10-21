@@ -252,6 +252,34 @@ private:
     else return input;
   }
 
+  /**
+   * @brief Calculates the average of the actual thrust magnitude of the rotors, given the base
+   * thrust vector containing virtual thrusts.
+   * @param base_thrust The base thrust vector, containing virtual thrusts for each rotor.
+   * @return The average of the actual thrust magnitude of the rotors.
+   */
+  float averageBaseThrust(const float* base_thrust) const
+  {
+    // rotor_coef_=gimbal_dof_+1 so this is safe
+    const int rotor_num = motor_number_ / rotor_coef_;
+    float total = 0;
+
+    for(int rotor = 0; rotor < rotor_num; ++rotor)
+      {
+        float squared_norm = 0;
+        for(int axis = 0; axis < rotor_coef_; ++axis)
+          {
+            const float component =
+              base_thrust[rotor * rotor_coef_ + axis];
+            squared_norm += component * component;
+          }
+
+        total += sqrtf(squared_norm);
+      }
+
+    return total / rotor_num;
+  }
+
 #ifdef SIMULATION
   uint32_t HAL_GetTick(){ return ros::Time::now().toSec() * 1000; }
 public:
