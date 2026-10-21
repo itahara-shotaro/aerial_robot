@@ -46,10 +46,16 @@ endif()
 
 # Generate the upstream MuJoCo models, then select this robot's drag-free world.
 mujoco_model_convert(${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/config/mujoco_model.yaml)
-get_filename_component(GIMBALROTOR_MUJOCO_WORLD
-  "${PROJECT_SOURCE_DIR}/../../aerial_robot_simulation/config/mujoco/world.xml" REALPATH)
-add_custom_target(configure_gimbalrotor_mujoco ALL
-  COMMAND ${PYTHON_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/configure_mujoco_models.py
-    ${PROJECT_SOURCE_DIR} ${GIMBALROTOR_MUJOCO_WORLD}
-  DEPENDS generate_mujoco_model
-  WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
+
+# generate_mujoco_model is not built on aarch64 (vim4)
+if(TARGET generate_mujoco_model)
+  get_filename_component(GIMBALROTOR_MUJOCO_WORLD
+    "${PROJECT_SOURCE_DIR}/../../aerial_robot_simulation/config/mujoco/world.xml" REALPATH)
+
+  add_custom_target(configure_gimbalrotor_mujoco ALL
+    COMMAND ${PYTHON_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/configure_mujoco_models.py
+      ${PROJECT_SOURCE_DIR} ${GIMBALROTOR_MUJOCO_WORLD}
+    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
+
+  add_dependencies(configure_gimbalrotor_mujoco generate_mujoco_model)
+endif()
