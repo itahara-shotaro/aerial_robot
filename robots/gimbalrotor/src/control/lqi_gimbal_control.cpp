@@ -5,7 +5,7 @@ using namespace aerial_robot_control;
 GimbalLQIController::GimbalLQIController():
   UnderActuatedLQIController(),
   gimbal_dof_(1), rotor_coef_(2), input_num_(0),
-  r_thrust_(1.0), r_lateral_(10.0), allocation_det_thresh_(1e-3), max_gimbal_angle_(0.6),
+  r_thrust_(1.0), r_lateral_(10.0), gravity_feedforward_(false), allocation_det_thresh_(1e-3), max_gimbal_angle_(0.6),
   lqi_ready_(false), flight_cmd_sent_(false)
 {
 }
@@ -91,6 +91,7 @@ void GimbalLQIController::rosParamInit()
   getParam<double>(lqi_nh, "r_thrust", r_thrust_, 1.0);
   getParam<double>(lqi_nh, "r_lateral", r_lateral_, 10.0);
   getParam<double>(control_nh, "max_gimbal_angle", max_gimbal_angle_, 0.6);
+  getParam<bool>(control_nh, "z/gravity_feedforward", gravity_feedforward_, false);
 
   /* R, one entry per virtual input. Within each rotor's block the last component is the thrust
      direction (arm z, rotor-driven and fast); the preceding ones are the lateral directions the
@@ -297,9 +298,12 @@ void GimbalLQIController::controlCore()
   P_dash.bottomRows(3) = alloc.bottomRows(3);
   q_mat_inv_ = aerial_robot_model::pseudoinverse(P_dash);
 
-  /* The LQI feedback is expressed in the CoG frame while the z error is in the world frame. The
-     commanded part of that tilt is known exactly from the desired CoG orientation, so compensate it
-     rather than relying on the (noisier) estimated attitude. */
+  /* After a commanded baselink rotation the rotor axes are tilted w.r.t. the CoG frame (which stays
+     level in the world), and the vertical force the LQ z gains deliver per unit of z state drops in
+     proportion to cos(tilt). Scale the z feedback by 1/cos(tilt) to restore it, so the z loop gain
+     and the integrator state needed to hold the weight stay the same as in level flight. The tilt is
+     known exactly from the desired CoG orientation, so use that rather than the (noisier) estimated
+     attitude.*/
   double des_r, des_p, des_y;
   robot_model_->getCogDesireOrientation<KDL::Rotation>().GetRPY(des_r, des_p, des_y);
   double tilt_scale = 1.0 / std::max(cos(des_r) * cos(des_p), 0.1);
@@ -318,6 +322,12 @@ void GimbalLQIController::controlCore()
 
   /* feed-forward term for z */
   target_thrust_z_term += q_mat_inv_.col(0) * navigator_->getTargetAcc().z();
+
+  /* Optional gravity feed-forward: the minimum-norm virtual-input vector that gives a pure z force
+     (no torque), so the z integrator only has to absorb the model error instead of the whole weight.
+  */
+  if(gravity_feedforward_)
+    target_thrust_z_term += q_mat_inv_.col(0) * robot_model_->getGravity3d()(2);
 
   /* constrain z (and its I term). The physical limit is on each rotor's thrust magnitude, which is
      the norm over that rotor's block of virtual inputs, not on a single component. */

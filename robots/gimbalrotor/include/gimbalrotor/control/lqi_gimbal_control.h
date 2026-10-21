@@ -50,6 +50,7 @@ namespace aerial_robot_control
     int input_num_;    // motor_num_ * rotor_coef_
 
     double r_thrust_, r_lateral_;
+    bool gravity_feedforward_;
     double allocation_det_thresh_;
     double max_gimbal_angle_;
 
