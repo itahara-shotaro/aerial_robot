@@ -426,11 +426,8 @@ void AttitudeController::update(void)
 
       if(force_landing_flag_)
         {
-          float total_thrust = 0;
-          /* sum */
-          for(int i = 0; i < motor_number_; i++) total_thrust += base_thrust_term_[i];
-          /* average */
-          float average_thrust = total_thrust / motor_number_;
+          // Calculate per-actual-motor thrust for perventing lower motor thrust than force_landing_thrust_
+          const float average_thrust = averageBaseThrust(base_thrust_term_);
 
           if(average_thrust > force_landing_thrust_)
             {
