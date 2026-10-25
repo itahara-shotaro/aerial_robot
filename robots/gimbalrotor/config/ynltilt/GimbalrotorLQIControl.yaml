@@ -6,7 +6,7 @@ controller:
   # spinal's roll/pitch thrust term, so it cannot reconstruct the total force direction itself
   gimbal_calc_in_fc: true
   # cap on the gimbal deflection this controller will request [rad]
-  max_gimbal_angle: 0.6
+  max_gimbal_angle: 1.0
 
   # outer loop: position. Allocated in the null space of z/roll/pitch/yaw, so raising these gains does
   # not eat into the attitude loop's authority.
@@ -14,7 +14,7 @@ controller:
     p_gain: 6.0
     i_gain: 0.5
     d_gain: 3.5
-    limit_sum: 4.0
+    limit_sum: 6.0
     limit_p: 12.0
     limit_i: 12.0
     limit_d: 12.0
@@ -22,7 +22,7 @@ controller:
   # z errors feed the per-input LQI z gains; limit_sum clamps each rotor's thrust magnitude
   z:
     limit_err_p: 1.0
-    limit_sum: 8.0 # N, clamps each rotor's thrust magnitude (max_thrust is ~13 N)
+    limit_sum: 15.0 # N, clamps each rotor's thrust magnitude
     limit_p: 25.0
     limit_i: 25.0
     limit_d: 25.0
@@ -48,7 +48,7 @@ controller:
     limit_err_p: 0.4
     # NOTE: unlike the PID controller, this clamps the per-input yaw force in newtons. It has to stay
     # commensurate with the ~2.4 N hover thrust, or the yaw term alone swings the gimbals to their stops.
-    limit_sum: 2.0
+    limit_sum: 4.0
     limit_p: 2.0
     limit_i: 2.0
     limit_d: 2.0
