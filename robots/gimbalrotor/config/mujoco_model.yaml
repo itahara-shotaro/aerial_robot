@@ -2,6 +2,8 @@ package:
   ["gimbalrotor"]
 
 gimbalrotor:
-  input: ["robots/ynltilt/gimbalrotor.urdf.xacro", "robots/quad/gimbalrotor.urdf.xacro"]
-  filename: ["ynltilt", "quad"]
+  input: ["robots/ynltilt/gimbalrotor.urdf.xacro", "robots/quad/gimbalrotor.urdf.xacro",
+          "robots/ynltilt/flex/plus_x/gimbalrotor.urdf.xacro", "robots/ynltilt/flex/minus_x/gimbalrotor.urdf.xacro"]
+  # Output directories under mujoco/. Flex variants mirror robots/<airframe>/flex/<flex_mode>.
+  filename: ["ynltilt", "quad", "ynltilt/flex/plus_x", "ynltilt/flex/minus_x"]
   meshdir: "urdf"

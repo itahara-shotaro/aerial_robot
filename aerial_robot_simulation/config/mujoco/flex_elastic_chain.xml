@@ -1,0 +1,32 @@
+<mujoco>
+  <extension>
+    <plugin plugin="mujoco.elasticity.cable"/>
+  </extension>
+  <worldbody>
+    <!-- The same 1.2 m, 94 g pool noodle as elastic_chain.xml; the calibration
+         of count, density, bend, twist and damping is explained there. Keep the
+         two copies in sync. Only offset differs: the rod starts at flex1's +x
+         port, 0.1345 m ahead of and 0.04298 m below its base_link, which spawns
+         at z = 0.2. -->
+    <composite prefix="noodle/" type="cable" curve="s" count="13 1 1"
+               size="1.2" offset="-0.6 0 0.15702" initial="free">
+      <plugin plugin="mujoco.elasticity.cable">
+        <config key="twist" value="2.0e5"/>
+        <config key="bend" value="5.2e5"/>
+      </plugin>
+      <joint kind="main" damping="0.05"/>
+      <geom type="capsule" size="0.0325" density="16.47" rgba="0.9 0.5 0.1 1"
+            contype="1073741824" conaffinity="1"/>
+    </composite>
+  </worldbody>
+  <equality>
+    <!-- Clamped at the attachment ports with the elastic_chain.xml welds.
+         flex_port_N is a massless body fixed to base_link, so the weld acts
+         on the drone exactly as a weld to base_link with this anchor would.
+         flex_port_2 is yawed by pi; relpose is filled from qpos0 either way. -->
+    <weld name="noodle_left" body1="noodle/B_first" body2="flex1/flex_port_1"
+          anchor="0 0 0" torquescale="1" solref="0.007 1"/>
+    <weld name="noodle_right" body1="noodle/B_last" body2="flex2/flex_port_2"
+          anchor="0 0 0" torquescale="1" solref="0.007 1"/>
+  </equality>
+</mujoco>

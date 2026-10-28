@@ -25,6 +25,7 @@
   <arg name="robot_id" default="1" />
   <arg name="robot_ns" default="gimbalrotor$(arg robot_id)" />
   <arg name="airframe" default="ynltilt" />
+  <arg name="flex_mode" default="" />
   <!-- Basename of the control config in the airframe config directory. -->
   <arg name="control_config" default="GimbalrotorControl" />
   <!-- Root of this robot's TF tree.  Multi-robot flights give each robot its own
@@ -55,7 +56,7 @@
 
    ###########  Control  ###########
    <rosparam file="$(arg config_dir)/$(arg airframe)/$(arg control_config).yaml" command="load" unless="$(arg simulation)"/>
-   <rosparam file="$(arg config_dir)/$(arg airframe)/$(arg control_config)_sim.yaml" command="load" if="$(arg simulation)"/>
+   <rosparam file="$(arg config_dir)/$(arg airframe)/$(arg control_config).yaml" command="load" if="$(arg simulation)"/>
 
    ###########  Sensor Fusion  ###########
    <rosparam file="$(arg config_dir)/StateEstimation.yaml" command="load" />
@@ -78,9 +79,11 @@
   ###########  Robot Model  ###########
   <arg name="description_mode" value="urdf" unless="$(arg simulation)" />
   <arg name="description_mode" value="gazebo" if="$(arg simulation)" />
-  <include file="$(find aerial_robot_model)/launch/aerial_robot_model.launch" >
+  <arg name="robot_model_name" value="$(find gimbalrotor)/robots/$(arg airframe)/gimbalrotor.$(arg description_mode).xacro" if="$(eval arg('flex_mode') == '')"/>
+  <arg name="robot_model_name" value="$(find gimbalrotor)/robots/$(arg airframe)/flex/$(arg flex_mode)/gimbalrotor.$(arg description_mode).xacro" unless="$(eval arg('flex_mode') == '')"/>
+  <include file="$(find aerial_robot_model)/launch/aerial_robot_model.launch">
     <arg name="headless" value="$(arg headless)" />
-    <arg name="robot_model" value="$(find gimbalrotor)/robots/$(arg airframe)/gimbalrotor.$(arg description_mode).xacro"/>
+    <arg name="robot_model" value="$(arg robot_model_name)"/>
     <arg name="robot_ns" value="$(arg robot_ns)" />
     <arg name="rviz_config" value="$(arg config_dir)/rviz_config" />
     <arg name="rviz_init_pose" value="$(arg config_dir)/RvizInit.yaml" />
@@ -114,12 +117,14 @@
     <node pkg="aerial_robot_base" type="gazebo_killer.py" name="gazebo_killer"/>
   </group>
 
+  <arg name="mujoco_dir" value="$(find gimbalrotor)/mujoco/$(arg airframe)" if="$(eval arg('flex_mode') == '')"/>
+  <arg name="mujoco_dir" value="$(find gimbalrotor)/mujoco/$(arg airframe)/flex/$(arg flex_mode)" unless="$(eval arg('flex_mode') == '')"/>
   <group if="$(eval arg('simulation') and not arg('real_machine') and arg('mujoco'))">
     <include file="$(find aerial_robot_simulation)/launch/mujoco.launch" if="$(arg launch_mujoco)">
       <arg name="robot_ns" value="$(arg robot_ns)" />
       <arg name="headless" value="$(arg headless)" />
-      <arg name="mujoco_model" value="$(find gimbalrotor)/mujoco/$(arg airframe)/robot.xml" />
-      <arg name="initial_joint_states" value="$(find gimbalrotor)/mujoco/$(arg airframe)/initial_joint_states.yaml" />
+      <arg name="mujoco_model" value="$(arg mujoco_dir)/robot.xml" />
+      <arg name="initial_joint_states" value="$(arg mujoco_dir)/initial_joint_states.yaml" />
       <arg name="real_time_factor" value="$(arg mujoco_real_time_factor)" />
       <arg name="use_spinal" value="$(arg use_spinal)" />
     </include>

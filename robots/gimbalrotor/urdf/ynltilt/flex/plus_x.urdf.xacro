@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<robot
+    xmlns:xacro="http://www.ros.org/wiki/xacro" name="flex_ports" >
+  <xacro:include filename="$(find gimbalrotor)/urdf/ynltilt/macros.urdf.xacro" />
+  <xacro:extra_module name = "flex_port_1" parent = "base_link" visible = "0" >
+    <origin xyz="${0.1345} ${0.0} ${-0.04298}" rpy="0 0 0"/>
+    <inertial>
+      <mass value = "0.00001" />
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia
+          ixx="0.000001" ixy="0.0" ixz="0.0"
+          iyy="0.000001" iyz="0.0" izz="0.000001"/>
+    </inertial>
+  </xacro:extra_module>
+</robot>

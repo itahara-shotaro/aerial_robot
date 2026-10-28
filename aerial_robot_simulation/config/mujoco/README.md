@@ -28,6 +28,14 @@ one gimbalrotor and one mini quadrotor. Each robot entry accepts `namespace`,
 `model` (optional MJCF override), and `use_spinal` (default true).
 `pos` translates the generated model's original root position.
 
+Gimbalrotors also accept `flex_mode`, for example `airframe: ynltilt` with
+`flex_mode: plus_x` or `minus_x`. It selects the model generated from
+`robots/<airframe>/flex/<flex_mode>/` (mesh with the noodle attachment, plus a
+`flex_port_N` body at the attachment) and passes the same `flex_mode` to the
+robot's bringup. The variants are listed in `gimbalrotor/config/mujoco_model.yaml`.
+The build regenerates models only when `gimbalrotor/mujoco/` is missing, so
+delete that directory before rebuilding after adding a variant or changing a URDF.
+
 Gimbalrotors also accept `control_config` per robot. A top-level `control_config`
 or the launch argument selects the default for all gimbalrotors, for example
 `control_config:=GimbalrotorLQIControl`. A per-robot selection takes precedence.
@@ -111,6 +119,24 @@ in `elastic_chain.xml` give the measurements and explain how to tune them.
 Arm, take off and land both drones together. With the PID controller each
 drone trims about 6 degrees in pitch against the clamp moment in hover.
 
+`flex_elastic_chain.yaml` uses the same rod between `/flex1` and `/flex2`, ynltilts
+with the 2026 noodle attachments (`flex_mode` `plus_x` and `minus_x`, as flown on
+2026-10-25). The rod is clamped at the `flex_port_N` bodies, 0.1345 m outboard of and
+0.043 m below each `base_link`, and is still 1.2 m long, so the drones spawn 1.469 m
+apart (`flex_elastic_chain.xml`):
+
+```bash
+roslaunch aerial_robot_simulation elastic_mujoco.launch \
+  scene:="$(rospack find aerial_robot_simulation)/config/mujoco/flex_elastic_chain.yaml"
+```
+
+With the default ynltilt PID gains this pair hovers in a growing, antisymmetric pitch
+oscillation with a period of about 2 s. It settles at roughly ±0.6 rad. The same
+ynltilts clamped at `base_link` hover within ±0.005 rad. Moving the clamp outboard by
+itself is benign. Moving it 4.3 cm down is what destabilises the pair.
+With `control_config:=GimbalrotorLQIControl` the same scene hovers within ±0.005 rad,
+and the largest tilt over the whole flight is 0.036 rad.
+
 ## Physics checks without ROS
 
 `mujoco_scene_physics_test` (built with `CATKIN_ENABLE_TESTING`) steps a
@@ -120,7 +146,8 @@ generated scene with external lift forces and no controllers:
 rosrun aerial_robot_simulation multi_mujoco.py --generate-only --output-dir /tmp/noodle \
   --scene "$(rospack find aerial_robot_simulation)/config/mujoco/elastic_chain.yaml"
 rosrun aerial_robot_simulation mujoco_scene_physics_test /tmp/noodle/scene.xml elastic
-# For chain.yaml use "chain"; for payload.yaml use "payload".
+# For chain.yaml use "chain"; for payload.yaml use "payload";
+# for flex_elastic_chain.yaml use "flex_elastic".
 ```
 
 Without a third argument the check loads `lib/mujoco/mujoco_plugin` from the

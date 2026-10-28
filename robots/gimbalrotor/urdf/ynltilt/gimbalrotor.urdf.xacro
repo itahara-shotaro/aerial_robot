@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <robot
     xmlns:xacro="http://www.ros.org/wiki/xacro" name="gimbalrotor_link" >
-
-  <xacro:macro name="gimbalrotor_center_link" params="child1 child2 child3 child4">
+  <xacro:include filename="$(find gimbalrotor)/urdf/ynltilt/macros.urdf.xacro" />
+  <xacro:macro name="gimbalrotor_center_link" params="child1 child2 child3 child4 mesh:=baseline_2026ver_noprop.stl">
     ## dummy
     <link name="root">
       <inertial>
@@ -33,7 +33,7 @@
       <visual>
         <origin xyz="0 0 -0.0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://gimbalrotor/urdf/ynltilt/mesh/experiment_mode_noprop.stl"/>
+          <mesh filename="package://gimbalrotor/urdf/ynltilt/mesh/${mesh}"/>
         </geometry>
       </visual>
       <collision>
@@ -157,7 +157,7 @@
       <visual>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://gimbalrotor/urdf/ynltilt/mesh/prop_module_5in.stl"/>
+          <mesh filename="package://gimbalrotor/urdf/ynltilt/mesh/prop_module_9in_v2.stl"/>
         </geometry>
       </visual>
     </link>
@@ -242,25 +242,6 @@
       </actuator>
     </transmission>
 
-  </xacro:macro>
-
-  <xacro:macro name="extra_module" params="name parent *origin *inertial visible:=0 model_url:=1 scale:=1">
-    <joint name="${parent}2${name}" type="fixed">
-      <parent link="${parent}"/>
-      <child link="${name}"/>
-      <xacro:insert_block name="origin" />
-    </joint>
-    <link name="${name}">
-      <xacro:insert_block name="inertial" />
-      <xacro:if value="${visible == 1}">
-        <visual>
-          <origin rpy="0 0 0" xyz="0 0 0"/>
-          <geometry>
-            <mesh filename="${model_url}" scale= "${scale} ${scale} ${scale}"/>
-          </geometry>
-        </visual>
-      </xacro:if>
-    </link>
   </xacro:macro>
 
   <xacro:extra_module name = "lidar_optical_center" parent = "base_link" visible = "0" >

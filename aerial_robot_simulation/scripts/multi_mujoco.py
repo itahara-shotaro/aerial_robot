@@ -108,7 +108,8 @@ def generate(scene_path, output_dir, headless=True, real_time_factor=1.0, contro
             raise ValueError("Each robot must specify a namespace and package")
         if "prefix" in entry and not isinstance(entry["prefix"], str):
             raise ValueError("prefix must be a string")
-        unknown = set(entry) - {"namespace", "package", "airframe", "model", "pos", "yaw", "prefix", "control_config", "use_spinal"}
+        unknown = set(entry) - {"namespace", "package", "airframe", "flex_mode", "model", "pos", "yaw", "prefix",
+                                "control_config", "use_spinal"}
         if unknown:
             raise ValueError("Unknown robot fields: %s" % sorted(unknown))
         robot = dict(entry)
@@ -130,10 +131,16 @@ def generate(scene_path, output_dir, headless=True, real_time_factor=1.0, contro
             robot.setdefault("airframe", "quad")
             if robot["airframe"] not in ("quad", "ynltilt"):
                 raise ValueError("Generated gimbalrotor models support quad and ynltilt")
-            model = package_path / "mujoco" / robot["airframe"] / "robot.xml"
+            model = package_path / "mujoco" / robot["airframe"]
+            if "flex_mode" in robot:
+                # Same layout as robots/<airframe>/flex/<flex_mode> in the bringup.
+                if not isinstance(robot["flex_mode"], str) or not re.fullmatch(r"[A-Za-z0-9_]+", robot["flex_mode"]):
+                    raise ValueError("flex_mode must be a simple name such as plus_x")
+                model = model / "flex" / robot["flex_mode"]
+            model = model / "robot.xml"
         else:
-            if "airframe" in robot:
-                raise ValueError("mini_quadrotor does not accept airframe")
+            if "airframe" in robot or "flex_mode" in robot:
+                raise ValueError("mini_quadrotor does not accept airframe or flex_mode")
             model = package_path / "mujoco/robot.xml"
         robot["model"] = resolve_path(robot.get("model", str(model)), scene_path.parent)
         if not Path(robot["model"]).is_file():
@@ -156,6 +163,8 @@ def generate(scene_path, output_dir, headless=True, real_time_factor=1.0, contro
         args = dict(robot_ns=ns, simulation="true", real_machine="false", mujoco="true", launch_mujoco="false", headless="true")
         if robot["package"] == "gimbalrotor":
             args["airframe"] = robot["airframe"]
+            if "flex_mode" in robot:
+                args["flex_mode"] = robot["flex_mode"]
         else:
             args["demo"] = "false"
         if robot["package"] == "gimbalrotor":

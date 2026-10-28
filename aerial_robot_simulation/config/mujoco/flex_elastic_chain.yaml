@@ -1,0 +1,19 @@
+# The elastic_chain.yaml rod between two ynltilts with the 2026 noodle
+# attachments, as flown on 2026-10-25: flex1 holds the rod on its +x port,
+# flex2 on its -x port. The rod is still 1.2 m between the ports, which sit
+# 0.1345 m from each base_link, so the drones spawn 1.469 m apart.
+#
+#   roslaunch aerial_robot_simulation elastic_mujoco.launch \
+#     scene:=$(find aerial_robot_simulation)/config/mujoco/flex_elastic_chain.yaml
+robots:
+  - namespace: flex1
+    package: gimbalrotor
+    airframe: ynltilt
+    flex_mode: plus_x
+    pos: [-0.7345, 0, 0]
+  - namespace: flex2
+    package: gimbalrotor
+    airframe: ynltilt
+    flex_mode: minus_x
+    pos: [0.7345, 0, 0]
+attachments: [flex_elastic_chain.xml]

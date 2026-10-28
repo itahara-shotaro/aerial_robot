@@ -16,7 +16,7 @@ int main(int argc, char** argv)
   try
     {
       if (argc < 3 || argc > 4)
-        throw std::runtime_error("Usage: mujoco_scene_physics_test scene.xml chain|payload|elastic [plugin_library]");
+        throw std::runtime_error("Usage: mujoco_scene_physics_test scene.xml chain|payload|elastic|flex_elastic [plugin_library]");
       if (argc == 4)
         mj_loadPluginLibrary(argv[3]);
       else if (const char* prefixes = std::getenv("CMAKE_PREFIX_PATH"))
@@ -50,9 +50,13 @@ int main(int argc, char** argv)
         if (id < 0) throw std::runtime_error(std::string("Missing body ") + name);
         return id;
       };
-      if (std::string(argv[2]) == "elastic")
+      const bool flex = std::string(argv[2]) == "flex_elastic";
+      if (flex || std::string(argv[2]) == "elastic")
         {
-          int a = body("elastic1/base_link"), b = body("elastic2/base_link");
+          int a = body(flex ? "flex1/base_link" : "elastic1/base_link");
+          int b = body(flex ? "flex2/base_link" : "elastic2/base_link");
+          // flex_elastic clamps the rod at the attachment ports instead of base_link.
+          int port_a = flex ? body("flex1/flex_port_1") : a, port_b = flex ? body("flex2/flex_port_2") : b;
           // The cable composite names its bodies B_first, B_1 ... B_last.
           std::vector<int> noodle;
           for (int i = 0; i < m->nbody; ++i)
@@ -78,7 +82,7 @@ int main(int argc, char** argv)
           for (int i = 0; i < mjNWARNING; ++i)
             if (d->warning[i].number) throw std::runtime_error("MuJoCo reported a dynamics warning");
           // The clamps must keep each rod end on its drone.
-          for (auto ends : {std::make_pair(noodle.front(), a), std::make_pair(noodle.back(), b)})
+          for (auto ends : {std::make_pair(noodle.front(), port_a), std::make_pair(noodle.back(), port_b)})
             {
               // B_last's frame is at its capsule's start; the rod ends one pitch further.
               const mjtNum pitch = mju_norm3(m->body_pos + 3 * noodle[1]);

@@ -204,6 +204,25 @@ class LaunchTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "finite numbers"):
             initial_positions(robot, self.root)
 
+    def test_flex_mode_selects_variant_model_and_bringup(self):
+        config = self.root / "config/ynltilt"
+        config.mkdir(parents=True)
+        (config / "Servo.yaml").write_text(yaml.safe_dump({"servo_controller": {
+            "gimbals": {"controller1": {"name": "gimbal1", "simulation": {"init_value": 0}}}}}))
+        variant = self.root / "mujoco/ynltilt/flex/plus_x"
+        variant.mkdir(parents=True)
+        (variant / "robot.xml").write_text(MODEL)
+        launch = self.generate([dict(namespace="a", package="gimbalrotor", airframe="ynltilt", flex_mode="plus_x")])
+        args = {arg.get("name"): arg.get("value") for arg in launch.findall("include")[0]}
+        self.assertEqual((args["airframe"], args["flex_mode"]), ("ynltilt", "plus_x"))
+        scene = ET.parse(str(self.root / "output/scene.xml")).getroot()
+        self.assertEqual(scene.find("./asset/mesh").get("file"), str(variant / "meshes/body.stl"))
+        for flex_mode in ("minus_x", "../plus_x", 1):
+            with self.assertRaises(ValueError):
+                self.generate([dict(namespace="a", package="gimbalrotor", airframe="ynltilt", flex_mode=flex_mode)])
+        with self.assertRaisesRegex(ValueError, "flex_mode"):
+            self.generate([dict(self.entry("a"), flex_mode="plus_x")])
+
     def test_rejects_invalid_robot_values_before_launch(self):
         for overrides in ({"pos": None}, {"yaw": None}, {"prefix": ""},
                           {"use_spinal": "false"}, {"package": "unknown"}, {"control_config": False}):

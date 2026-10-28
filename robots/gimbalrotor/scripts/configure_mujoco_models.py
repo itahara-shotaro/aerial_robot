@@ -82,8 +82,10 @@ def configure(package_dir, world):
     package_dir = Path(package_dir)
     converted = yaml.safe_load((package_dir / 'config' / 'mujoco_model.yaml').read_text())['gimbalrotor']
     xacros = dict(zip(converted['filename'], converted['input']))
-    for airframe in ('quad', 'ynltilt'):
-        directory = package_dir / 'mujoco' / airframe
+    # A flex variant (e.g. ynltilt/flex/plus_x) shares its airframe's Servo.yaml.
+    for name, xacro in xacros.items():
+        airframe = Path(name).parts[0]
+        directory = package_dir / 'mujoco' / name
         model = directory / 'robot.xml'
         root = ET.parse(str(model)).getroot()
         includes = root.findall('include')
@@ -91,7 +93,7 @@ def configure(package_dir, world):
         if len(world_includes) != 1:
             raise ValueError('Expected one generated world include in %s' % model)
         world_includes[0].set('file', str(Path(world).resolve()))
-        restore_collisions(root, urdf_collisions(package_dir / xacros[airframe]))
+        restore_collisions(root, urdf_collisions(package_dir / xacro))
         ET.ElementTree(root).write(str(model), encoding='utf-8', xml_declaration=True)
         servos = yaml.safe_load((package_dir / 'config' / airframe / 'Servo.yaml').read_text())['servo_controller']
         positions = {}
