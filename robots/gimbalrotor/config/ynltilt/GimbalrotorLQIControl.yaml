@@ -32,7 +32,7 @@ controller:
     limit_d: 25.0
     force_landing_descending_rate: -0.5
     # feed forward the weight (min-norm pure-z virtual inputs) instead of leaving it all to the z integrator
-    gravity_feedforward: true
+    gravity_feedforward: false
 
   # unused by this controller (spinal runs the attitude loop with the LQI gains), but
   # PoseLinearController still constructs these PID objects
