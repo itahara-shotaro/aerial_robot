@@ -26,6 +26,13 @@
           <arg name="rviz" value="false" />
         </include>
 
+        <!-- cloudini + map -->
+        <include file="$(find lio_map)/launch/lio_map.launch" />
+        <include file="$(find cloudini_ros1)/launch/cloudini_encoder.launch" >
+          <arg name="raw_topic" value="accumulated_map" />
+          <arg name="compressed_topic" value="accumulated_map/cloudini" />
+        </include>
+
       </group>
     </group>
 
